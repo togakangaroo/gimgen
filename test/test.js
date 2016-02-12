@@ -40,7 +40,7 @@ const functionalGenerators = function(generator) {
     const signalIn = (ms) => ({
       identity: signalInIdentity,
       is: (other) => signalInIdentity == other.identity,
-      promise: () => new Promise((resolve) => setTimeout(resolve, ms))
+      promise: () => new SynchronousPromise((resolve) => setTimeout(resolve, ms))
     })
 
     const signalOnCallIdentity = Symbol('signalOnCall')
@@ -97,21 +97,6 @@ const throttle = functionalGenerators(function*(fg, ms, fn) {
     yield fg.signalIn(ms)
     }
 })
-const debounce = functionalGenerators(function*(fg, ms, fn) {
-  while(true) {
-    yield fg.signalOnCall()
-    const nextSignal = yield fg.anySignal(fg.signalIn(ms), fg.signalOnCall())
-    if(timePassed.is(nextSignal))
-      fn()
-  }
-})
-const after = functionalGenerators(function*(fg, ms, fn) {
-  while(true) {
-    const c = yield fg.signalOnCall()
-    const t = yield fg.signalIn(ms)
-    fn()
-  }
-})
 
 var clock
 beforeEach(() => clock = sinon.useFakeTimers() )
@@ -136,13 +121,22 @@ describe("pass through function call", () => {
 
   describe("when called", () => {
     beforeEach(() => fn(123, 654))
-    it.only("will call wrapped function", () => {console.log(`checking expection`); expect(callback.callCount).to.equal(1)})
+    it("will call wrapped function", () => {console.log(`checking expection`); expect(callback.callCount).to.equal(1)})
 
     describe("when called again", () => {
       beforeEach(() => fn(789, 921))
       it("will call wrapped function again", () => expect(callback.callCount).to.equal(2))
     })
   })
+})
+
+const after = functionalGenerators(function*(fg, ms, fn) {
+  while(true) {
+    const c = yield fg.signalOnCall()
+    console.log(`waiting for singnal in ${ms}`)
+    const t = yield fg.signalIn(ms)
+    fn()
+  }
 })
 
 describe("after by 1000ms", () => {
@@ -169,7 +163,15 @@ describe("after by 1000ms", () => {
 })
 
 
-describe("debounce by 1000ms", () => {
+const debounce = functionalGenerators(function*(fg, ms, fn) {
+  while(true) {
+    yield fg.signalOnCall()
+    const nextSignal = yield fg.anySignal(fg.signalIn(ms), fg.signalOnCall())
+    if(timePassed.is(nextSignal))
+      fn()
+  }
+})
+describe.only("debounce by 1000ms", () => {
   var fn, callback;
   beforeEach(() => fn = debounce(1000, callback = sinon.spy()) )
 
