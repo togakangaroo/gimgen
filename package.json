@@ -4,8 +4,8 @@
   "description": "generator implementation of functional helpers",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test",
-    "test-debug": "mocha test --debug-brk"
+    "test": "mocha test --compilers js:babel-register",
+    "test-debug": "mocha test  --compilers js:babel-register --debug-brk"
   },
   "author": "gmauer@gmail.com",
   "license": "MIT",
@@ -13,5 +13,9 @@
     "chai": "^3.5.0",
     "mocha": "^2.4.5",
     "sinon": "^1.17.3"
+  },
+  "devDependencies": {
+    "babel-preset-node5": "^10.5.0",
+    "babel-register": "^6.5.2"
   }
 }

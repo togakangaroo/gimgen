@@ -1,18 +1,11 @@
 'use strict'
 
-const assert = require('assert')
-const sinon = require('sinon')
-const expect = require('chai').expect
+import sinon from 'sinon'
+import {assert} from 'assert'
+import {expect} from 'chai'
 
-// function debounce(ms, fn) {
-//   var delayHandle;
-//   return () => {
-//     delayHandle && clearTimeout(delayHandle);
-//     delayHandle = setTimeout(fn, ms);
-//   }
-// }
-
-
+// TODO - GM - This isn't really a promise, we just need something that is synchronous and has a promise-like interface
+// so maybe rename this
 class SynchronousPromise {
   constructor(builder) {
     this.resolvers = []
