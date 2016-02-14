@@ -4,6 +4,14 @@ import sinon from 'sinon'
 import {assert} from 'assert'
 import {expect} from 'chai'
 
+const noop = () => {}
+const once = (fn) => {
+  let next = (...args) => {
+    next = noop
+    return fn(...args)
+  }
+  return next
+}
 // TODO - GM - This isn't really a promise, we just need something that is synchronous and has a promise-like interface
 // so maybe rename this
 class SynchronousPromise {
@@ -11,8 +19,8 @@ class SynchronousPromise {
     this.resolvers = []
     this.rejectors = []
     builder(
-      function(){ this.resolvers.forEach(r => r.apply(null, arguments)) }.bind(this),
-      function(){ this.rejectors.forEach(r => r.apply(arguments)) }.bind(this)
+      once((...args) => this.resolvers.forEach(r => r(...args)) ),
+      once((...args) => this.rejectors.forEach(r => r(...args)) )
     )
   }
   then(resolve, reject) {
@@ -30,37 +38,24 @@ const anyPromise = (promises) =>
 const functionalGenerators = function(generator) {
   return function wrappedFunction() {
 
-    const signalInIdentity = Symbol('signalIn')
     const signalIn = (ms) => ({
-      identity: signalInIdentity,
-      is: (other) => signalInIdentity == other.identity,
       promise: () => new SynchronousPromise((resolve) => setTimeout(resolve, ms))
     })
 
-    const signalOnCallIdentity = Symbol('signalOnCall')
     var onNextFunctionCall = []
     const signalOnCall = () => {
       return {
-        identity: signalOnCallIdentity,
-        is: (other) => signalOnCallIdentity == other.identity,
-        promise: () => new SynchronousPromise((resolve) => {
-                          console.log(`generating signalOnCall promise`)
-                          onNextFunctionCall.push(resolve)
-                        })
+        promise: () => new SynchronousPromise((resolve) => onNextFunctionCall.push(resolve) )
       }
     }
 
-    const anySignalIdentity = Symbol('anySignal')
     const anySignal = function() {
       const signalsWithPromise = Array.from(arguments).map(s => ({
         promise: s.promise(), signal: s,
       }))
       return {
-        identity: anySignalIdentity,
-        is: (other) => signalInIdentity == other.identity,
         promise: () =>
-          anyPromise(signalsWithPromise.map(x => x.promise)).then(function() {
-            const args = Array.from(arguments)
+          anyPromise(signalsWithPromise.map(x => x.promise)).then((...args) => {
             const promise = args[0]
             return signalsWithPromise.filter(x => x.promise === promise)[0].signal
           })
@@ -69,21 +64,18 @@ const functionalGenerators = function(generator) {
     const fg = { signalIn, signalOnCall, anySignal };
     const iterator = generator(fg, ...arguments);
     loopTillDone(iterator.next.bind(iterator))
-    return function() {
+    return (...args) => {
           const fns = onNextFunctionCall
           onNextFunctionCall = []
-          console.log(`method called, applying once to ${fns.length} functions`)
-          fns.forEach(fn => fn.apply(null, arguments) )
+          fns.forEach(fn => fn(...args) )
       }
   }
 }
 
 function loopTillDone(getNext) {
   const current = getNext()
-  if(current.done) return console.log('cone looping')
-  console.log(`waiting for promise completion`)
+  if(current.done) return
   current.value.promise().then(function() {
-    console.log(`promise completed`)
     loopTillDone(getNext)
   })
 }
@@ -98,30 +90,74 @@ const throttle = functionalGenerators(function*(fg, ms, fn) {
     }
 })
 
-var clock
+const manualSignal = () => {
+  return {
+    promise: noop
+  }
+}
+
+let clock
 beforeEach(() => clock = sinon.useFakeTimers() )
 afterEach(() => clock.restore() )
 
+describe.skip("anySignal returns first signal", () => {
+  let fn, callback1, callback2, singnal1, signal2;
+  beforeEach(() => {
+    const firstOf = functionalGenerators(function*(fg, fn1, fn2) {
+      while(true) {
+        const signal1 = manualSignal()
+        const signal2 = manualSignal()
+        const recieved = yield fg.anySignal(signal1, signal2)
+        if(recieved == singnal1)
+          fn1()
+        else if(recieved == signal2)
+          fn2()
+      }
+      fn = firstOf(callback1 = sinon.spy(), callback2 = sinon.spy())
+    })
+  })
+  const checkCallCount = (count1, count2) => () => {
+    expect(callback1.callCount).to.equal(count1)
+    expect(callback2.callCount).to.equal(count2)
+  }
+
+  it("does not trigger any signal initially", checkCallCount(0, 0) )
+
+  describe("trigger signal2", () => {
+    beforeEach(() => signal2.trigger() )
+    it("triggers callback2", checkCallCount(0, 1))
+  })
+
+  describe("trigger signal1", () => {
+    beforeEach(() => signal1.trigger() )
+    it("triggers callback1", checkCallCount(1, 0))
+
+    describe("trigger signal1", () => {
+      beforeEach(() => signal1.trigger() )
+      it("triggers callback1", checkCallCount(2, 1))
+    })
+
+    describe("trigger signal2", () => {
+      beforeEach(() => signal2.trigger() )
+      it("triggers callback2", checkCallCount(1, 1))
+    })
+  })
+})
 
 describe("pass through function call", () => {
-  var fn, callback;
+  let fn, callback;
   beforeEach(() => {
     const passThrough = functionalGenerators(function*(fg, fn) {
       while(true) {
-        console.log(`yielding signalOnCall`)
         yield fg.signalOnCall()
-        console.log(`yield returned calling fn`)
         fn()
       }
     })
-    callback = sinon.spy()
-    const foo = passThrough(() => {console.log("inside passThrough method"); callback(); })
-    fn = () => {console.log("calling passThrough method"); foo(); }
-  })
+    fn = passThrough(callback= sinon.spy() )  })
 
   describe("when called", () => {
     beforeEach(() => fn(123, 654))
-    it("will call wrapped function", () => {console.log(`checking expection`); expect(callback.callCount).to.equal(1)})
+    it("will call wrapped function", () =>  expect(callback.callCount).to.equal(1))
 
     describe("when called again", () => {
       beforeEach(() => fn(789, 921))
@@ -133,7 +169,6 @@ describe("pass through function call", () => {
 const after = functionalGenerators(function*(fg, ms, fn) {
   while(true) {
     const c = yield fg.signalOnCall()
-    console.log(`waiting for singnal in ${ms}`)
     const t = yield fg.signalIn(ms)
     fn()
   }
@@ -162,24 +197,17 @@ describe("after by 1000ms", () => {
   })
 })
 
-// describe("anySignal", () => {}
-// )
-
 const debounce = functionalGenerators(function*(fg, ms, fn) {
-  console.log(`-- awaiting first call`)
   yield fg.signalOnCall()
   while(true) {
-    console.log(`-- awaiting any call`)
     const nextSignal = yield fg.anySignal(fg.signalIn(ms), fg.signalOnCall())
-    if(timePassed.is(nextSignal)) {
-      console.log(`-- call was time passed, calling fn`)
+    if(timePassed == nextSignal) {
       fn()
-      console.log(`-- awaiting next call`)
       yield fg.signalOnCall()
     }
   }
 })
-describe("debounce by 1000ms", () => {
+describe.skip("debounce by 1000ms", () => {
   var fn, callback;
   beforeEach(() => fn = debounce(1000, callback = sinon.spy()) )
 
