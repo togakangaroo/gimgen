@@ -29,6 +29,18 @@ class SynchronousPromise {
   }
 }
 
+const manualSignal = () => {
+  let toNotify = []
+  return {
+    promise: () => new SynchronousPromise(resolve => toNotify = [...toNotify, resolve ]),
+    signal: (...args) => {
+        const fns = toNotify
+        toNotify = []
+        fns.forEach(fn => fn(...args) )
+    },
+  }
+}
+
 const anyPromise = (promises) =>
   new SynchronousPromise((resolve) => promises.map(p =>
     p.then(function() { resolve(p, ...arguments)} )
@@ -42,12 +54,8 @@ const functionalGenerators = function(generator) {
       promise: () => new SynchronousPromise((resolve) => setTimeout(resolve, ms))
     })
 
-    var onNextFunctionCall = []
-    const signalOnCall = () => {
-      return {
-        promise: () => new SynchronousPromise((resolve) => onNextFunctionCall.push(resolve) )
-      }
-    }
+    let nextInvokationSignal
+    const signalOnCall = (...args) => nextInvokationSignal = manualSignal(...args)
 
     const anySignal = function() {
       const signalsWithPromise = Array.from(arguments).map(s => ({
@@ -64,20 +72,16 @@ const functionalGenerators = function(generator) {
     const fg = { signalIn, signalOnCall, anySignal };
     const iterator = generator(fg, ...arguments);
     loopTillDone(iterator.next.bind(iterator))
-    return (...args) => {
-          const fns = onNextFunctionCall
-          onNextFunctionCall = []
-          fns.forEach(fn => fn(...args) )
-      }
+    return (...args) => nextInvokationSignal && nextInvokationSignal.signal(...args)
   }
 }
 
 function loopTillDone(getNext) {
   const current = getNext()
   if(current.done) return
-  current.value.promise().then(function() {
+  current.value.promise().then(() =>
     loopTillDone(getNext)
-  })
+  )
 }
 
 
@@ -89,12 +93,6 @@ const throttle = functionalGenerators(function*(fg, ms, fn) {
     yield fg.signalIn(ms)
     }
 })
-
-const manualSignal = () => {
-  return {
-    promise: noop
-  }
-}
 
 let clock
 beforeEach(() => clock = sinon.useFakeTimers() )
