@@ -3,6 +3,7 @@
 import sinon from 'sinon'
 import {assert} from 'assert'
 import {expect} from 'chai'
+import SyncPromise from 'sync-promise'
 
 const noop = () => {}
 const once = (fn) => {
@@ -12,72 +13,61 @@ const once = (fn) => {
   }
   return next
 }
-// TODO - GM - This isn't really a promise, we just need something that is synchronous and has a promise-like interface
-// so maybe rename this
-class SynchronousPromise {
-  constructor(builder) {
-    this.resolvers = []
-    this.rejectors = []
-    builder(
-      once((...args) => this.resolvers.forEach(r => r(...args)) ),
-      once((...args) => this.rejectors.forEach(r => r(...args)) )
-    )
-  }
-  then(resolve, reject) {
-    resolve && this.resolvers.push(resolve)
-    reject && this.rejectors.push(reject)
-  }
-}
 
-const manualSignal = () => {
+const manualSignal = (name) => {
   let toNotify = []
   return {
-    promise: () => new SynchronousPromise(resolve => toNotify = [...toNotify, resolve ]),
-    signal: (...args) => {
+    promise: () => new SyncPromise(resolve => toNotify = [...toNotify, resolve ]),
+    trigger: (...args) => {
         const fns = toNotify
         toNotify = []
         fns.forEach(fn => fn(...args) )
     },
+    toString: () => name,
   }
 }
 
 const anyPromise = (promises) =>
-  new SynchronousPromise((resolve) => promises.map(p =>
-    p.then(function() { resolve(p, ...arguments)} )
+  new SyncPromise((resolve) => promises.map(p =>
+    p.then((...args) => {
+      return resolve({promise:p}, ...args)
+    })
   ))
 
+  const anySignal = (...signals) => {
+    const signalsWithPromise = signals.map(s => ({
+      promise: s.promise(), signal: s,
+    }))
+    const res = {
+      promise: anyPromise(signalsWithPromise.map(x => x.promise)).then(x => {
+          const a = signalsWithPromise.filter(y => y.promise === x.promise)[0]
+          console.log(a.signal)
+          return a.signal
+        })
+    }
+    return res
+  }
 
 const functionalGenerators = function(generator) {
   return function wrappedFunction() {
 
     const signalIn = (ms) => ({
-      promise: () => new SynchronousPromise((resolve) => setTimeout(resolve, ms))
+      promise: () => new SyncPromise((resolve) => setTimeout(resolve, ms))
     })
 
     let nextInvokationSignal
     const signalOnCall = (...args) => nextInvokationSignal = manualSignal(...args)
 
-    const anySignal = function() {
-      const signalsWithPromise = Array.from(arguments).map(s => ({
-        promise: s.promise(), signal: s,
-      }))
-      return {
-        promise: () =>
-          anyPromise(signalsWithPromise.map(x => x.promise)).then((...args) => {
-            const promise = args[0]
-            return signalsWithPromise.filter(x => x.promise === promise)[0].signal
-          })
-      }
-    }
     const fg = { signalIn, signalOnCall, anySignal };
     const iterator = generator(fg, ...arguments);
     loopTillDone(iterator.next.bind(iterator))
-    return (...args) => nextInvokationSignal && nextInvokationSignal.signal(...args)
+    return (...args) => nextInvokationSignal && nextInvokationSignal.trigger(...args)
   }
 }
 
 function loopTillDone(getNext) {
   const current = getNext()
+  console.log('current', current)
   if(current.done) return
   current.value.promise().then(() =>
     loopTillDone(getNext)
@@ -85,34 +75,38 @@ function loopTillDone(getNext) {
 }
 
 
-
 const throttle = functionalGenerators(function*(fg, ms, fn) {
   while(true) {
     yield fg.signalOnCall()
     fn()
     yield fg.signalIn(ms)
-    }
+  }
 })
 
 let clock
 beforeEach(() => clock = sinon.useFakeTimers() )
 afterEach(() => clock.restore() )
 
-describe.skip("anySignal returns first signal", () => {
-  let fn, callback1, callback2, singnal1, signal2;
+const createSpy = (name) => Object.assign(sinon.spy(), {toString: () => name })
+
+describe("anySignal returns first signal", () => {
+  let fn, callback1, callback2, signal1, signal2;
   beforeEach(() => {
     const firstOf = functionalGenerators(function*(fg, fn1, fn2) {
       while(true) {
-        const signal1 = manualSignal()
-        const signal2 = manualSignal()
-        const recieved = yield fg.anySignal(signal1, signal2)
-        if(recieved == singnal1)
+        signal1 = manualSignal()
+        signal2 = manualSignal()
+        const as = fg.anySignal(signal1, signal2)
+        console.log('as is', as)
+        const recieved = yield as;
+        console.log("returned from anySignal", recieved)
+        if(recieved == signal1)
           fn1()
         else if(recieved == signal2)
           fn2()
       }
-      fn = firstOf(callback1 = sinon.spy(), callback2 = sinon.spy())
     })
+    fn = firstOf(callback1 = createSpy('one'), callback2 = createSpy('two'))
   })
   const checkCallCount = (count1, count2) => () => {
     expect(callback1.callCount).to.equal(count1)
@@ -123,7 +117,7 @@ describe.skip("anySignal returns first signal", () => {
 
   describe("trigger signal2", () => {
     beforeEach(() => signal2.trigger() )
-    it("triggers callback2", checkCallCount(0, 1))
+    it.only("triggers callback2", checkCallCount(0, 1))
   })
 
   describe("trigger signal1", () => {

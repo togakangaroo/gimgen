@@ -1,0 +1,36 @@
+{
+    "rules": {
+        "indent": [
+            0,
+            "tab"
+        ],
+        "quotes": [
+            0,
+            "single"
+        ],
+        "linebreak-style": [
+            0,
+            "windows"
+        ],
+        "semi": [
+            0,
+            "never"
+        ],
+        "comma-dangle": [0],
+        "mocha/no-exclusive-tests": [2]
+    },
+    "env": {
+        "es6": true,
+        "browser": true,
+        "node": true,
+        "mocha": true
+    },
+    "extends": "eslint:recommended",
+    "ecmaFeatures": {
+        "modules": true,
+        "experimentalObjectRestSpread": true
+    },
+    "plugins": [
+        "mocha"
+    ]
+}
