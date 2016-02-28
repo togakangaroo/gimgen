@@ -1,25 +1,21 @@
-import {anySignal, timeoutSignal, invokableGimgen } from './gimgen'
+import { anySignal, timeoutSignal, invokableGimgen } from './gimgen'
 
-export const once = invokableGimgen(({onInvokedSignal}) => function*(fn) {
+export const once = invokableGimgen(({invokedSignal}) => function*(fn) {
   let val
-  yield onInvokedSignal((...args) => val = fn(...args) )
+  yield invokedSignal((...args) => val = fn(...args) )
   while(true)
-    yield onInvokedSignal(() => val)
+    yield invokedSignal(() => val)
 })
 
-// export const throttle = invokableGimgen(({invokedSignal}) => function*() {
-//
-// })
-// const throttle = functionalGenerators(function*(fg, ms, fn) {
-//   while(true) {
-//     yield fg.signalOnCall()
-//     fn()
-//     yield fg.signalIn(ms)
-//   }
-// })
+export const throttle = invokableGimgen(({invokedSignal}) => function*(ms, fn) {
+  while(true) {
+    yield invokedSignal()
+    yield timeoutSignal(ms)
+    fn()
+  }
+})
 
-
-export const debounce = invokableGimgen(({invokedSignal }) => function*(ms, fn) {
+export const debounce = invokableGimgen(({invokedSignal}) => function*(ms, fn) {
   yield invokedSignal()
   while(true) {
     const timePassed = timeoutSignal(ms)
@@ -28,5 +24,13 @@ export const debounce = invokableGimgen(({invokedSignal }) => function*(ms, fn) 
       fn()
       yield invokedSignal()
     }
+  }
+})
+
+export const after = invokableGimgen(({invokedSignal}) => function*(count, fn) {
+  for(let i = 0; i<count; i+=1)
+    yield invokedSignal(()=>null)
+  while(true) {
+    yield invokedSignal(fn)
   }
 })

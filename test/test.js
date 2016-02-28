@@ -2,7 +2,7 @@ import sinon from 'sinon'
 import {assert} from 'chai'
 import SyncPromise from 'sync-promise'
 import { gimgen, manualSignal, invokableGimgen } from '../src/gimgen'
-import { once, debounce } from '../src/gimgen-implementations'
+import { once, debounce, throttle, after } from '../src/gimgen-implementations'
 
 let clock, _originalPromise = null
 beforeEach(() => {
@@ -113,39 +113,37 @@ describe(`once incrementor`, () => {
   })
 })
 
-// const after = functionalGenerators(function*(fg, ms, fn) {
-//   while(true) {
-//     const c = yield fg.signalOnCall()
-//     const t = yield fg.signalIn(ms)
-//     fn()
-//   }
-// })
-//
-// describe("after by 1000ms", () => {
-//   var fn, callback;
-//   beforeEach(() => fn = after(1000, callback = sinon.spy()) )
-//
-//   it("will not call initially", () => expect(callback.called).to.be.false)
-//
-//   describe("call now", () => {
-//     beforeEach(() => fn())
-//     it("will not call", () => expect(callback.called).to.be.false)
-//
-//     describe("wait 900ms", () => {
-//       beforeEach(() => clock.tick(900))
-//       it("will not call", () => expect(callback.called).to.be.false)
-//
-//       describe("wait 150ms", () => {
-//
-//         beforeEach(() => clock.tick(150))
-//         it("will call", () => expect(callback.called).to.be.true)
-//       })
-//     })
-//   })
-// })
-//
-describe("debounce by 1000ms", () => {
+describe("throttle by 1000ms", () => {
   var fn, callback;
+  beforeEach(() => fn = throttle(1000, callback = sinon.spy()) )
+  it("will not call initially", () => assert(!callback.called))
+
+  describe(`wait 1500ms`, () => {
+    beforeEach(() => clock.tick(1500))
+    it("will not call", () => assert(!callback.called))
+  })
+
+  describe("call now", () => {
+    beforeEach(() => fn())
+    it("will not call", () => assert(!callback.called))
+
+    describe("wait 900ms and call again", () => {
+      beforeEach(() => {
+        clock.tick(900)
+        fn()
+      })
+      it("will not call", () => assert(!callback.called))
+
+      describe("wait 150ms", () => {
+        beforeEach(() => clock.tick(150))
+        it("will call", () => assert(callback.called))
+      })
+    })
+  })
+})
+
+describe("debounce by 1000ms", () => {
+  let fn, callback;
   beforeEach(() => fn = debounce(1000, callback = sinon.spy()) )
 
   it("will not call fn initially", () => assert(!callback.called))
@@ -169,6 +167,26 @@ describe("debounce by 1000ms", () => {
       describe("wait 150ms", () => {
         beforeEach(() => clock.tick(150))
         it("will call", () => assert(callback.called))
+      })
+    })
+  })
+})
+
+describe(`after 2`, () => {
+  let fn, callback;
+  beforeEach(() => fn = after(2, callback = sinon.spy()))
+  it(`will not call`, () => assert(!callback.called))
+
+  describe(`call twice`, () => {
+    beforeEach(() => {fn(); fn();})
+    it(`will not call`, () => assert(!callback.called))
+
+    describe(`call a third time`, () => {
+      beforeEach(() => fn())
+      it(`will call once`, () => assert.equal(callback.args.length, 1))
+      describe(`call a fourth time`, () => {
+        beforeEach(() => fn())
+        it(`will call twice`, () => assert.equal(callback.args.length, 2))
       })
     })
   })
