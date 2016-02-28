@@ -1,14 +1,19 @@
 import sinon from 'sinon'
 import {assert} from 'chai'
 import SyncPromise from 'sync-promise'
-import {gimgen, manualSignal, invokableGimgen } from '../src/gimgen'
+import { gimgen, manualSignal, invokableGimgen } from '../src/gimgen'
+import { once, debounce } from '../src/gimgen-implementations'
 
-let _originalPromise = null
+let clock, _originalPromise = null
 beforeEach(() => {
   _originalPromise = global.Promise
   global.Promise = SyncPromise
+  clock = sinon.useFakeTimers()
 } )
-afterEach(() => global.Promise = _originalPromise)
+afterEach(() => {
+  global.Promise = _originalPromise
+  clock.restore()
+})
 
 describe(`gimgen a generator`, () => {
   let run, signal, callback
@@ -88,89 +93,26 @@ describe(`invokeable gimgen generator`, () => {
   })
 })
 
-// const throttle = functionalGenerators(function*(fg, ms, fn) {
-//   while(true) {
-//     yield fg.signalOnCall()
-//     fn()
-//     yield fg.signalIn(ms)
-//   }
-// })
-//
-// let clock
-// beforeEach(() => clock = sinon.useFakeTimers() )
-// afterEach(() => clock.restore() )
-//
-// const createSpy = (name) => Object.assign(sinon.spy(), {toString: () => name })
-//
-// describe("anySignal returns first signal", () => {
-//   let fn, callback1, callback2, signal1, signal2;
-//   beforeEach(() => {
-//     const firstOf = functionalGenerators(function*(fg, fn1, fn2) {
-//       while(true) {
-//         signal1 = manualSignal()
-//         signal2 = manualSignal()
-//         const as = fg.anySignal(signal1, signal2)
-//         console.log('as is', as)
-//         const recieved = yield as;
-//         console.log("returned from anySignal", recieved)
-//         if(recieved == signal1)
-//           fn1()
-//         else if(recieved == signal2)
-//           fn2()
-//       }
-//     })
-//     fn = firstOf(callback1 = createSpy('one'), callback2 = createSpy('two'))
-//   })
-//   const checkCallCount = (count1, count2) => () => {
-//     expect(callback1.callCount).to.equal(count1)
-//     expect(callback2.callCount).to.equal(count2)
-//   }
-//
-//   it("does not trigger any signal initially", checkCallCount(0, 0) )
-//
-//   describe("trigger signal2", () => {
-//     beforeEach(() => signal2.trigger() )
-//     it("triggers callback2", checkCallCount(0, 1))
-//   })
-//
-//   describe("trigger signal1", () => {
-//     beforeEach(() => signal1.trigger() )
-//     it("triggers callback1", checkCallCount(1, 0))
-//
-//     describe("trigger signal1", () => {
-//       beforeEach(() => signal1.trigger() )
-//       it("triggers callback1", checkCallCount(2, 1))
-//     })
-//
-//     describe("trigger signal2", () => {
-//       beforeEach(() => signal2.trigger() )
-//       it("triggers callback2", checkCallCount(1, 1))
-//     })
-//   })
-// })
-//
-// describe("pass through function call", () => {
-//   let fn, callback;
-//   beforeEach(() => {
-//     const passThrough = functionalGenerators(function*(fg, fn) {
-//       while(true) {
-//         yield fg.signalOnCall()
-//         fn()
-//       }
-//     })
-//     fn = passThrough(callback= sinon.spy() )  })
-//
-//   describe("when called", () => {
-//     beforeEach(() => fn(123, 654))
-//     it("will call wrapped function", () =>  expect(callback.callCount).to.equal(1))
-//
-//     describe("when called again", () => {
-//       beforeEach(() => fn(789, 921))
-//       it("will call wrapped function again", () => expect(callback.callCount).to.equal(2))
-//     })
-//   })
-// })
-//
+describe(`once incrementor`, () => {
+  let fn, callback
+  beforeEach(() => {
+    callback = sinon.spy()
+    fn = once(val => {
+      callback()
+      return val+1
+    })
+  })
+
+  it(`does not call contained function initially`, () => assert(!callback.called))
+
+  describe(`call with value of 2`, () => {
+    let result
+    beforeEach(() => result = fn(2))
+    it(`returns 3`, () => assert.equal(result, 3))
+    it(`only runs once`, () => assert.equal(callback.args.length, 1))
+  })
+})
+
 // const after = functionalGenerators(function*(fg, ms, fn) {
 //   while(true) {
 //     const c = yield fg.signalOnCall()
@@ -202,42 +144,32 @@ describe(`invokeable gimgen generator`, () => {
 //   })
 // })
 //
-// const debounce = gimgen(function*(fg, ms, fn) {
-//   yield fg.signalOnCall()
-//   while(true) {
-//     const nextSignal = yield anySignal(timeoutSignal(ms), fg.signalOnCall())
-//     if(timePassed == nextSignal) {
-//       fn()
-//       yield fg.signalOnCall()
-//     }
-//   }
-// })
-// describe.skip("debounce by 1000ms", () => {
-//   var fn, callback;
-//   beforeEach(() => fn = debounce(1000, callback = sinon.spy()) )
-//
-//   it("will not call fn initially", () => expect(callback.called).to.be.false)
-//
-//   describe("call now", () =>{
-//     beforeEach(() => fn())
-//     it("will not call", () => expect(callback.called).to.be.false)
-//   })
-//
-//   describe("call in 900ms", () =>{
-//     beforeEach(() => {
-//       clock.tick(900);
-//       fn();
-//     })
-//     it("will not call", () => expect(callback.called).to.be.false)
-//
-//     describe("wait 900ms", () => {
-//       beforeEach(() => clock.tick(900))
-//       it("will not call", () => expect(callback.called).to.be.false)
-//
-//       describe("wait 150ms", () => {
-//         beforeEach(() => clock.tick(150))
-//         it("will call", () => expect(callback.called).to.be.true)
-//       })
-//     })
-//   })
-// })
+describe("debounce by 1000ms", () => {
+  var fn, callback;
+  beforeEach(() => fn = debounce(1000, callback = sinon.spy()) )
+
+  it("will not call fn initially", () => assert(!callback.called))
+
+  describe("call now", () =>{
+    beforeEach(() => fn())
+    it("will not call", () => assert(!callback.called))
+  })
+
+  describe("call in 900ms", () =>{
+    beforeEach(() => {
+      clock.tick(900);
+      fn();
+    })
+    it("will not call", () => assert(!callback.called))
+
+    describe("wait 900ms", () => {
+      beforeEach(() => clock.tick(900))
+      it("will not call", () => assert(!callback.called))
+
+      describe("wait 150ms", () => {
+        beforeEach(() => clock.tick(150))
+        it("will call", () => assert(callback.called))
+      })
+    })
+  })
+})

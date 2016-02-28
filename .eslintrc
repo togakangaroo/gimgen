@@ -18,6 +18,7 @@
         ],
         "no-empty-pattern": [0],
         "comma-dangle": [0],
+        "no-constant-condition": [0],
         "mocha/no-exclusive-tests": [2]
     },
     "env": {

@@ -85,12 +85,22 @@ export const gimgen = (generator) => (...generatorArgs) => {
 }
 
 export const invokableGimgen = (defineGenerator) => (...generatorArgs) => {
-    let nextInvokationSignal = {trigger: () => {}}
-    let nextReturn
+    let nextInvocationSignal = {trigger: () => {}}
+    let getNextReturn = () => {}
     const invokedSignal = (...args) =>
-                (nextReturn = args[0], nextInvokationSignal = manualSignal(...args))
-    gimgen(defineGenerator({invokedSignal}))(...generatorArgs)
-    return (...args) => (nextInvokationSignal.trigger(...args), nextReturn)
+                (getNextReturn = () => args[0], nextInvocationSignal = manualSignal(...args))
+    const onInvokedSignal = (getVal) => {
+                console.log('abad')
+                getNextReturn = getVal
+                return nextInvocationSignal = manualSignal()
+              }
+    const invocationHelpers = { invokedSignal, onInvokedSignal }
+    gimgen(defineGenerator(invocationHelpers))(...generatorArgs)
+    return (...args) => {
+      const res = getNextReturn(...args)
+      nextInvocationSignal.trigger(...args)
+      return res
+    }
 }
 
 export default gimgen
