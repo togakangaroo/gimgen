@@ -1,7 +1,7 @@
 import sinon from 'sinon'
 import {assert} from 'chai'
 import SyncPromise from 'sync-promise'
-import {gimgen, manualSignal} from '../src/gimgen'
+import {gimgen, manualSignal, invokableGimgen } from '../src/gimgen'
 
 let _originalPromise = null
 beforeEach(() => {
@@ -10,7 +10,7 @@ beforeEach(() => {
 } )
 afterEach(() => global.Promise = _originalPromise)
 
-describe(`gimgen a process`, () => {
+describe(`gimgen a generator`, () => {
   let run, signal, callback
   beforeEach(() => {
     signal = manualSignal()
@@ -23,7 +23,7 @@ describe(`gimgen a process`, () => {
       callback(a)
     })
   })
-  it(`does not run initially`, () => assert(!callback.called))
+  it(`does not run it initially`, () => assert(!callback.called))
 
   const callbackInvokedTimes = (timesInvoked, argumentValue, itDoes = it) => {
     itDoes(`triggered callback ${timesInvoked} times`, () =>
@@ -44,9 +44,50 @@ describe(`gimgen a process`, () => {
       })
     })
   })
-
 })
-//
+
+describe(`invokeable gimgen generator`, () => {
+  let run, trigger, callback
+  beforeEach(() => {
+    callback = sinon.spy()
+    run = invokableGimgen( ({invokedSignal}) => function*(counter) {
+      callback(counter+=1)
+      yield invokedSignal()
+      callback(counter+=1)
+      const a = yield invokedSignal('foo')
+      callback(a)
+    })
+  })
+  it(`does not run initially`, () => assert(!callback.called))
+
+  const callbackInvokedTimes = (timesInvoked, argumentValue, itDoes = it) => {
+    itDoes(`triggered callback ${timesInvoked} times`, () => {
+      assert.equal(callback.args.length, timesInvoked)
+    })
+    itDoes(`triggered callback with ${argumentValue}`, () => {
+      assert.equal(callback.args[timesInvoked-1][0], argumentValue)
+    })
+  }
+  describe(`run to get trigger and start counter at 2`, () => {
+    beforeEach(() => trigger = run(2))
+    callbackInvokedTimes(1, 3)
+    describe(`invoke trigger`, () => {
+      beforeEach(() => trigger())
+      callbackInvokedTimes(2, 4)
+      describe(`invoke trigger again and check return value`, () => {
+        let invocationResult
+        beforeEach(() => {
+          invocationResult = trigger('a')
+        })
+        it(`recieves invocation result`, () => {
+          assert.equal(invocationResult, 'foo')
+        })
+        callbackInvokedTimes(3, 'a')
+      })
+    })
+  })
+})
+
 // const throttle = functionalGenerators(function*(fg, ms, fn) {
 //   while(true) {
 //     yield fg.signalOnCall()
