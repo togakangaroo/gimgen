@@ -30,10 +30,13 @@ export const createSignal = (name, propsOrCreatePromise) => {
   }
 }
 
-export const firstResolvedPromise = (promises) =>
-  new Promise(resolve =>
-    promises.map(promise => promise.then(() => resolve({promise}) )
-  ))
+export const domEventToSignal = (el, eventName) =>
+  createSignal(`DOM event ${eventName}`, () => new Promise(resolve => {
+    el.addEventListener(eventName, function triggerResolve(...args){
+      el.removeEventListener(eventName, triggerResolve)
+      resolve(...args)
+    })
+  }))
 
 // Signal that triggers in the passed in amount of ms
 // Usage:
@@ -59,6 +62,11 @@ export const manualSignal = createSignal('manualSignal', {
     toNotify.forEach(fn => fn(...args))
   }
 })
+
+export const firstResolvedPromise = (promises) =>
+  new Promise(resolve =>
+    promises.map(promise => promise.then(() => resolve({promise}) )
+  ))
 
 // Signal that resolves when any of the signals passed in resolve
 // Usage:

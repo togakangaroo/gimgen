@@ -20,7 +20,7 @@ export const debounce = invokableGimgen(({invokedSignal}) => function*(ms, fn) {
   while(true) {
     const timePassed = timeoutSignal(ms)
     const nextSignal = yield anySignal(timePassed, invokedSignal())
-    if(timePassed == nextSignal) {
+    if(timePassed === nextSignal) {
       fn()
       yield invokedSignal()
     }
