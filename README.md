@@ -33,38 +33,54 @@ While it is certainly debateable whether this format is simpler, it is certainly
 
 ## Show Notifications
 
+We want to be able to show pop-up notifications. A notification appears and stays visible for three seconds unless the user moves their mouse over it. When a notification "disappears" it must first acquire a `hidden` class to allow css transitions to animate it before being completely removed
 
 ```js
 const showNotification = gigmen(function*(msg) {
   const el = document.createElement('li')
   el.textContent = msg
   notificationsList.appendChild(el)
+
   const timeout = timeoutSignal(3000)
   const mouseMoved = domEventToSignal(el, 'mouseover')
   while(timeout !== yield anySignal(timeout, mouseMoved)) {}
+  el.addClass('hidden')
+  yield timeoutSignal(1000)
   el.remove()
 })
+
+showNotification("message one")
+showNotification("another message")
 ```
 
-## memoization
+# What is a signal?
 
-This is another [common operation](http://underscorejs.org/#memoize), wrapping a pure function in a way that its inputs and return values are cached.
+At its heart a signal is a simple object with a `createPromise` method which returns any then-able object.
 
-```js
-const calculate = memoize(val => calculateSuperDifferentialIntegral(val))
-const a = calculate(10) //takes a while
-const b = calculate(15) //takes a while
-const c = calculate(10) //returns immediately since the return value for 10 is cached
 ```
-With **gimgen** it looks like this
+{ createPromise: () -> Promise }
+
+If you would like to create your own signals **gimgen** provides a convenience factory `createSignal` which takes a name (used for a `toString` implementation) and either a `createPromise` function or a configuration object containing a `createPromise` function
 
 ```js
-export const memoize = invokeableGimgen(({invokedSignal}) => function*(getValue) {
-  const cache = new Map()
-  while(true) {
-    yield inovokedSignal(val => {
-      if()
-      const result = getValue(val)
-      return cache.set(val, result)
-    })
+export const timeoutSignal = createSignal('timeoutSignal', ({}, ms) =>
+                        new Promise(resolve => setTimeout(resolve, ms) )
+                      )
+```
+
+The first parameter into any functions on the configuration object will always be an object with a `state` and `setState` property to read the current state of the signal and to adjust it respectively. An additional `getInitialState` function can be provided to set the state when a signal instance is created.
+
+Any other functions or fields on the configuration object will be copied to each signal instance with all functions being re-bound to receive the state object as the first parameter before any others
+
+```js
+export const manualSignal = createSignal('manualSignal', {
+  getInitialState: () => [],
+  createPromise: ({state: toNotify, setState}) =>
+    new Promise(resolve => setState([resolve, ...toNotify])),
+  trigger: ({state: toNotify, setState}, ...args) => {
+    if(args.length > 1)
+      setState([])
+    toNotify.forEach(fn => fn(...args))
+  }
 })
+```

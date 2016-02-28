@@ -30,6 +30,9 @@ export const createSignal = (name, propsOrCreatePromise) => {
   }
 }
 
+// Convert a DOM event to a signal
+// Usage:
+//  yield domEventToSignal(document.querySelector('#log-in', 'click'))
 export const domEventToSignal = (el, eventName) =>
   createSignal(`DOM event ${eventName}`, () => new Promise(resolve => {
     el.addEventListener(eventName, function triggerResolve(...args){
@@ -37,6 +40,11 @@ export const domEventToSignal = (el, eventName) =>
       resolve(...args)
     })
   }))
+
+// Convert a then-able promise to a signal
+// Usage:
+//  yield promiseToSignal($.get('/data'))
+export const promiseToSignal = promise => createSignal('promiseSignal', () => promise)
 
 // Signal that triggers in the passed in amount of ms
 // Usage:
@@ -58,7 +66,7 @@ export const manualSignal = createSignal('manualSignal', {
     new Promise(resolve => setState([resolve, ...toNotify])),
   trigger: ({state: toNotify, setState}, ...args) => {
     if(args.length > 1)
-    setState([])
+      setState([])
     toNotify.forEach(fn => fn(...args))
   }
 })
