@@ -16,6 +16,7 @@
             0,
             "never"
         ],
+        "no-empty-pattern": [0],
         "comma-dangle": [0],
         "mocha/no-exclusive-tests": [2]
     },
@@ -26,11 +27,12 @@
         "mocha": true
     },
     "extends": "eslint:recommended",
-    "ecmaFeatures": {
-        "modules": true,
-        "experimentalObjectRestSpread": true
+    "parserOptions": {
+        "sourceType": "module"
     },
     "plugins": [
-        "mocha"
+        "mocha",
+        "chai",
+        "sinon"
     ]
 }
