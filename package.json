@@ -1,8 +1,8 @@
 {
-  "name": "functional-generators",
-  "version": "0.0.0",
-  "description": "generator implementation of functional helpers",
-  "main": "index.js",
+  "name": "gimgen",
+  "version": "0.0.1",
+  "description": "library using javascript generators to control program flow and synchronize signals",
+  "main": "src/gimgen.js",
   "scripts": {
     "test": "mocha test --compilers js:babel-register",
     "test-debug": "mocha test  --compilers js:babel-register --debug-brk"
