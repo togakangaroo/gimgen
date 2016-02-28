@@ -10,9 +10,9 @@
   "author": "gmauer@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "sync-promise": "^1.0.1"
   },
   "devDependencies": {
+    "sync-promise": "^1.0.1",
     "chai": "^3.5.0",
     "mocha": "^2.4.5",
     "sinon": "^1.17.3",
@@ -21,7 +21,6 @@
     "eslint": "^2.2.0",
     "eslint-plugin-chai": "0.0.1",
     "eslint-plugin-mocha": "^2.0.0",
-    "eslint-plugin-sinon": "^0.1.0",
-    "promise-mock": "^1.0.0"
+    "eslint-plugin-sinon": "^0.1.0"
   }
 }

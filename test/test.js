@@ -1,36 +1,51 @@
-// import sinon from 'sinon'
-// import {assert} from 'assert'
-// import {expect} from 'chai'
-//
-// const noop = () => {}
-// const result = val => () => val
-//
-// // const functionalGenerators = function(generator) {
-// //   return function wrappedFunction() {
-// //
-// //     const signalIn = (ms) => ({
-// //       promise: () => new SyncPromise((resolve) => setTimeout(resolve, ms))
-// //     })
-// //
-// //     let nextInvokationSignal
-// //     const signalOnCall = (...args) => nextInvokationSignal = manualSignal(...args)
-// //
-// //     const fg = { signalIn, signalOnCall, anySignal };
-// //     const iterator = generator(fg, ...arguments);
-// //     loopTillDone(iterator.next.bind(iterator))
-// //     return (...args) => nextInvokationSignal && nextInvokationSignal.trigger(...args)
-// //   }
-// // }
-// //
-// // function loopTillDone(getNext) {
-// //   const current = getNext()
-// //   console.log('current', current)
-// //   if(current.done) return
-// //   current.value.promise().then(() =>
-// //     loopTillDone(getNext)
-// //   )
-// // }
-// //
+import sinon from 'sinon'
+import {assert} from 'chai'
+import SyncPromise from 'sync-promise'
+import {gimgen, manualSignal} from '../src/gimgen'
+
+let _originalPromise = null
+beforeEach(() => {
+  _originalPromise = global.Promise
+  global.Promise = SyncPromise
+} )
+afterEach(() => global.Promise = _originalPromise)
+
+describe(`gimgen a process`, () => {
+  let run, signal, callback
+  beforeEach(() => {
+    signal = manualSignal()
+    callback = sinon.spy()
+    run = gimgen(function*(counter) {
+      callback(counter+=1)
+      yield signal
+      callback(counter+=1)
+      const a = yield signal
+      callback(a)
+    })
+  })
+  it(`does not run initially`, () => assert(!callback.called))
+
+  const callbackInvokedTimes = (timesInvoked, argumentValue, itDoes = it) => {
+    itDoes(`triggered callback ${timesInvoked} times`, () =>
+      assert.equal(callback.args.length, timesInvoked))
+    itDoes(`triggered callback with ${argumentValue}`, () => {
+      assert.equal(callback.args[timesInvoked-1][0], argumentValue)
+    })
+  }
+  describe(`run and start counter at 2`, () => {
+    beforeEach(() => run(2))
+    callbackInvokedTimes(1, 3)
+    describe(`signal`, () => {
+      beforeEach(() => signal.trigger())
+      callbackInvokedTimes(2, 4)
+      describe(`signal again`, () => {
+        beforeEach(() => signal.trigger('a'))
+        callbackInvokedTimes(3, 'a')
+      })
+    })
+  })
+
+})
 //
 // const throttle = functionalGenerators(function*(fg, ms, fn) {
 //   while(true) {
@@ -146,10 +161,10 @@
 //   })
 // })
 //
-// const debounce = functionalGenerators(function*(fg, ms, fn) {
+// const debounce = gimgen(function*(fg, ms, fn) {
 //   yield fg.signalOnCall()
 //   while(true) {
-//     const nextSignal = yield fg.anySignal(fg.signalIn(ms), fg.signalOnCall())
+//     const nextSignal = yield anySignal(timeoutSignal(ms), fg.signalOnCall())
 //     if(timePassed == nextSignal) {
 //       fn()
 //       yield fg.signalOnCall()

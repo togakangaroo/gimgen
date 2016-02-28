@@ -71,4 +71,24 @@ export const anySignal = createSignal('anySignal', ({}, ...signals) => {
           )
 })
 
-export default { createSignal, anySignal, timeoutSignal, manualSignal }
+const runPromises = (getNext, valueToYield) => {
+  const current = getNext(valueToYield)
+  if(current.done) return
+  current.value.createPromise().then(promiseParam =>{
+    runPromises(getNext, promiseParam)
+  })
+}
+
+export const gimgen = (generator) => (...generatorArgs) => {
+    const iterator = generator(...generatorArgs);
+    runPromises((...args) => iterator.next(...args))
+}
+
+export const invokableGimgen = (defineGenerator) => (...generatorArgs) => {
+    let nextInvokationSignal = {trigger: () => {}}
+    const invokationSignal = (...args) => nextInvokationSignal = manualSignal(...args)
+    gimgen(defineGenerator({invokationSignal}))
+    return nextInvokationSignal.trigger(...generatorArgs)
+}
+
+export default gimgen
