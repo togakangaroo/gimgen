@@ -4,23 +4,24 @@
   "description": "library using javascript generators to control program flow and synchronize signals",
   "main": "src/gimgen.js",
   "scripts": {
+    "compile": "npm run test & babel src --out-dir dist",
     "test": "mocha test --compilers js:babel-register",
     "test-debug": "mocha test  --compilers js:babel-register --debug-brk"
   },
   "author": "gmauer@gmail.com",
   "license": "MIT",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
-    "sync-promise": "^1.0.1",
-    "chai": "^3.5.0",
-    "mocha": "^2.4.5",
-    "sinon": "^1.17.3",
+    "babel-cli": "^6.5.1",
     "babel-preset-node5": "^10.5.0",
     "babel-register": "^6.5.2",
+    "chai": "^3.5.0",
     "eslint": "^2.2.0",
     "eslint-plugin-chai": "0.0.1",
     "eslint-plugin-mocha": "^2.0.0",
-    "eslint-plugin-sinon": "^0.1.0"
+    "eslint-plugin-sinon": "^0.1.0",
+    "mocha": "^2.4.5",
+    "sinon": "^1.17.3",
+    "sync-promise": "^1.0.1"
   }
 }
