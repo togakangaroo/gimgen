@@ -8,7 +8,7 @@ What does this mean? Let's do this by example
 
 We want to be able to show pop-up notifications. A notification appears and stays visible for three seconds unless the user moves their mouse over it. When a notification "disappears" it must first acquire a `hidden` class to allow css transitions to animate it before being completely removed
 
-[Live Demo](http://jsbin.com/vugimu/4/edit?js,output)
+[Live Demo here](http://jsbin.com/vugimu/4/edit?js,output).
 
 ```js
 const showNotification = gimgen(function*(msg) {
@@ -28,6 +28,7 @@ const showNotification = gimgen(function*(msg) {
 showNotification("message one")
 showNotification("another message")
 ```
+What's that you say? If the user hovers over during timeout it should restart the process? [Easy enough to create that state machine](http://jsbin.com/vugimu/7/edit?js,output) with a `do...while`.
 
 ## Debouncing
 
