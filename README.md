@@ -9,15 +9,16 @@ What does this mean? Let's do this by example
 We want to be able to show pop-up notifications. A notification appears and stays visible for three seconds unless the user moves their mouse over it. When a notification "disappears" it must first acquire a `hidden` class to allow css transitions to animate it before being completely removed
 
 ```js
-const showNotification = gigmen(function*(msg) {
+const showNotification = gimgen(function*(msg) {
   const el = document.createElement('li')
   el.textContent = msg
-  notificationsList.appendChild(el)
+  notificationsArea.appendChild(el)
 
   const timeout = timeoutSignal(3000)
-  const mouseMoved = domEventToSignal(el, 'mouseover')
-  while(timeout !== yield anySignal(timeout, mouseMoved)) {}
-  el.addClass('hidden')
+  const mouseMoved = domEventToSignal(el, 'mousemove')
+  const mouseOver = domEventToSignal(el, 'mouseover')
+  while(timeout !== (yield anySignal(timeout, mouseMoved, mouseOver))) { }
+  el.classList.add('hidden')
   yield timeoutSignal(1000)
   el.remove()
 })

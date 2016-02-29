@@ -1,0 +1,83 @@
+<style>
+body {
+	min-height: 100vh;
+	display: flex;
+}
+form {
+	font-size: 160%;
+	display: flex;
+	margin: auto;
+}
+form *  {
+	font-size: inherit;
+	padding: .3em;
+}
+#notifications-area {
+	position: fixed;
+	top: 10;
+	right: 10;
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 10px;
+	color: #F00;
+}
+#notifications-area:empty {
+	display: none;
+}
+#notifications-area li {
+	padding: .7em;
+	margin-bottom: .7em;
+	background-color: rgba(100, 0, 0, .15);
+	border: 1px solid #F00;
+	border-radius: 10px;
+	transition: opacity .7s;
+	list-style-type: none;
+}
+.hidden {
+	opacity: 0;
+}
+</style>
+<script>
+	window.exports = {}
+</script>
+<script src="../dist/gimgen.js"></script>
+<script>
+	window.gimgen = exports
+	delete window.exports
+</script>
+
+<ul id="notifications-area"></ul>
+
+<form>
+  <input name="message" placeholder="Message" value="Notification Message">
+	<button>Show</button>
+</form>
+
+<script>
+console.clear()
+
+const gg = window.gimgen
+
+const notificationsArea = document.querySelector('#notifications-area')
+
+const showNotification = gg.gimgen(function*(msg) {
+  const el = document.createElement('li')
+  el.textContent = msg
+  notificationsArea.appendChild(el)
+
+  const timeout = gg.timeoutSignal(3000)
+  const mouseMoved = gg.domEventToSignal(el, 'mousemove')
+  const mouseOver = gg.domEventToSignal(el, 'mouseover')
+  while(timeout !== (yield gg.anySignal(timeout, mouseMoved, mouseOver))) { }
+  el.classList.add('hidden')
+  yield gg.timeoutSignal(1000)
+  el.remove()
+})
+
+document.querySelector('form').addEventListener('submit', e => {
+	e.preventDefault()
+	const msg = e.target.querySelector('[name=message]').value
+	showNotification(msg)
+})
+</script>
