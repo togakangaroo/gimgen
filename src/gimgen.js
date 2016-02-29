@@ -39,12 +39,12 @@ export const domEventToSignal = (el, eventName) =>
       el.removeEventListener(eventName, triggerResolve)
       resolve(...args)
     })
-  }))
+  }))()
 
 // Convert a then-able promise to a signal
 // Usage:
 //  yield promiseToSignal($.get('/data'))
-export const promiseToSignal = promise => createSignal('promiseSignal', () => promise)
+export const promiseToSignal = promise => createSignal('promiseSignal', () => promise)()
 
 // Signal that triggers in the passed in amount of ms
 // Usage:
