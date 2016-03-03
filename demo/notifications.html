@@ -1,12 +1,25 @@
 <style>
 body {
+	height: 100vh;
+	overflow: hidden;
 	min-height: 100vh;
 	display: flex;
+	background-color: cornsilk;
+}
+main {
+	font-size: 160%;
+	margin: auto;
+	padding: 2em;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+pre {
+	max-height: 12em;
+	overflow: scroll;
 }
 form {
-	font-size: 160%;
 	display: flex;
-	margin: auto;
 }
 form *  {
 	font-size: inherit;
@@ -31,47 +44,54 @@ form *  {
 	background-color: rgba(100, 0, 0, .15);
 	border: 1px solid #F00;
 	border-radius: 10px;
-	transition: opacity .7s;
+	transition: opacity 1.7s;
 	list-style-type: none;
 }
 .hidden {
 	opacity: 0;
 }
 </style>
-<script>
-	window.exports = {}
-</script>
 <script src="../dist/gimgen.js"></script>
-<script>
-	window.gimgen = exports
-	delete window.exports
-</script>
 
 <ul id="notifications-area"></ul>
 
-<form>
-  <input name="message" placeholder="Message" value="Notification Message">
-	<button>Show</button>
-</form>
+<main>
+	<p>
+		Click below to show a notification for three seconds before starting to fade out. Hover you mouse over the notification to
+		stop it from fading or bring it back if fading has begun.
+	</p>
+	<form>
+	  <input name="message" placeholder="Message" value="Notification Message">
+		<button>Show</button>
+	</form>
+	<p>
+		See code below (or even better look at <a href="https://github.com/togakangaroo/gimgen/blob/master/demo/notifications.html">source</a> or devtools)
+	</p>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
 
-<script>
-console.clear()
-
+<script id="code">
 const gg = window.gimgen
 
 const notificationsArea = document.querySelector('#notifications-area')
+
+const timeout3sec = gg.timeoutSignal(3000)
+const timeout2sec = gg.timeoutSignal(2000)
 
 const showNotification = gg.gimgen(function*(msg) {
   const el = document.createElement('li')
   el.textContent = msg
   notificationsArea.appendChild(el)
 
-  const timeout = gg.timeoutSignal(3000)
-  const mouseMoved = gg.domEventToSignal(el, 'mousemove')
-  const mouseOver = gg.domEventToSignal(el, 'mouseover')
-  while(timeout !== (yield gg.anySignal(timeout, mouseMoved, mouseOver))) { }
-  el.classList.add('hidden')
-  yield gg.timeoutSignal(1000)
+	const mouseMoved = gg.domEventToSignal(el, 'mousemove')
+	const mouseOver = gg.domEventToSignal(el, 'mouseover')
+	const interaction = gg.anySignal(mouseMoved, mouseOver)
+
+	do {
+	  el.classList.remove('hidden')
+	  while(timeout3sec !== (yield gg.anySignal(timeout3sec, interaction))) { }
+	  el.classList.add('hidden')
+	} while(timeout2sec !== (yield gg.anySignal(timeout2sec, interaction)))
   el.remove()
 })
 
@@ -81,3 +101,8 @@ document.querySelector('form').addEventListener('submit', e => {
 	showNotification(msg)
 })
 </script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />

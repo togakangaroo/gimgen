@@ -13,6 +13,7 @@
   "dependencies": {},
   "devDependencies": {
     "babel-cli": "^6.5.1",
+    "babel-plugin-transform-es2015-modules-umd": "^6.6.0",
     "babel-preset-node5": "^10.5.0",
     "babel-register": "^6.5.2",
     "chai": "^3.5.0",
