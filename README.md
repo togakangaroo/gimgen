@@ -67,8 +67,9 @@ The core functions to start using **gimgen** are
 
 At its heart a signal is a simple object with a `createPromise` method which returns any then-able object.
 
-```
+```js
 { createPromise: () -> Promise }
+```
 
 If you would like to create your own signals **gimgen** provides a convenience factory `createSignal` which takes a name (used for a `toString` implementation) and either a `createPromise` function or a configuration object containing a `createPromise` function
 
