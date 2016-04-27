@@ -1,0 +1,52 @@
+<link href="./common.css" rel="stylesheet" />
+<style>
+.target {
+	background-color: #002366;
+	border: 3px solid #666;
+	box-sizing: border-box;
+	width: 100px;
+	height: 100px;
+	min-width: 100px;
+	min-height: 100px;
+}
+</style>
+<script src="../dist/gimgen.js"></script>
+
+<div class="target"></div>
+
+<main>
+	<p>
+		The square above supports drag and drop
+	</p>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
+
+<script id="code">
+const gg = window.gimgen
+
+const makeDraggable = gg.gimgen(function*(el) {
+	const mouseDown = gg.domEventToSignal(el, 'mousedown')
+	const mouseMoved = gg.domEventToSignal(document, 'mousemove')
+	const mouseUp = gg.domEventToSignal(document, 'mouseup')
+
+	while(true) {
+		yield mouseDown
+		el.style.position = 'absolute'
+
+		while(mouseMoved === (yield gg.anySignal(mouseMoved, mouseUp))) {
+			const ev = mouseMoved.getLastEvent()
+			console.log(ev.clientX, ev.clientY)
+			Object.assign(el.style, {left: `${ev.clientX}px`, top: `${ev.clientY}px`})
+		}
+		console.log("doneish")
+	}
+
+})
+
+makeDraggable(document.querySelector('.target'))
+</script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />

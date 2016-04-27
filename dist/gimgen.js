@@ -121,12 +121,22 @@
   // Convert a DOM event to a signal
   // Usage:
   //  yield domEventToSignal(document.querySelector('#log-in', 'click'))
-  const domEventToSignal = exports.domEventToSignal = (el, eventName) => createSignal(`DOM event ${ eventName }`, () => new Promise(resolve => {
-    el.addEventListener(eventName, function triggerResolve() {
-      el.removeEventListener(eventName, triggerResolve);
-      resolve(...arguments);
-    });
-  }))();
+  const domEventToSignal = exports.domEventToSignal = (el, eventName) => createSignal(`DOM event ${ eventName }`, {
+    createPromise: _ref7 => {
+      let setState = _ref7.setState;
+      return new Promise(resolve => {
+        el.addEventListener(eventName, function triggerResolve(event) {
+          el.removeEventListener(eventName, triggerResolve);
+          setState(event);
+          resolve(event);
+        });
+      });
+    },
+    getLastEvent: _ref8 => {
+      let state = _ref8.state;
+      return state;
+    }
+  })();
 
   // Convert a then-able promise to a signal
   // Usage:
@@ -136,8 +146,8 @@
   // Signal that triggers in the passed in amount of ms
   // Usage:
   //  yield timeoutSignal(100)
-  const timeoutSignal = exports.timeoutSignal = createSignal('timeoutSignal', (_ref7, ms) => {
-    _objectDestructuringEmpty(_ref7);
+  const timeoutSignal = exports.timeoutSignal = createSignal('timeoutSignal', (_ref9, ms) => {
+    _objectDestructuringEmpty(_ref9);
 
     return new Promise(resolve => setTimeout(resolve, ms));
   });
@@ -151,18 +161,18 @@
   //  sig.trigger(1, 2, 3)
   const manualSignal = exports.manualSignal = createSignal('manualSignal', {
     getInitialState: () => [],
-    createPromise: _ref8 => {
-      let toNotify = _ref8.state;
-      let setState = _ref8.setState;
+    createPromise: _ref10 => {
+      let toNotify = _ref10.state;
+      let setState = _ref10.setState;
       return new Promise(resolve => setState([resolve, ...toNotify]));
     },
-    trigger: function (_ref9) {
+    trigger: function (_ref11) {
       for (var _len4 = arguments.length, args = Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
         args[_key4 - 1] = arguments[_key4];
       }
 
-      let toNotify = _ref9.state;
-      let setState = _ref9.setState;
+      let toNotify = _ref11.state;
+      let setState = _ref11.setState;
 
       if (args.length > 1) setState([]);
       toNotify.forEach(fn => fn(...args));
@@ -174,16 +184,16 @@
   // Signal that resolves when any of the signals passed in resolve
   // Usage:
   //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
-  const anySignal = exports.anySignal = createSignal('anySignal', function (_ref10) {
+  const anySignal = exports.anySignal = createSignal('anySignal', function (_ref12) {
     for (var _len5 = arguments.length, signals = Array(_len5 > 1 ? _len5 - 1 : 0), _key5 = 1; _key5 < _len5; _key5++) {
       signals[_key5 - 1] = arguments[_key5];
     }
 
-    _objectDestructuringEmpty(_ref10);
+    _objectDestructuringEmpty(_ref12);
 
     const signalPromise = signals.map(signal => ({ signal, promise: signal.createPromise() }));
-    return firstResolvedPromise(signalPromise.map(x => x.promise)).then(_ref11 => {
-      let resolvedPromise = _ref11.promise;
+    return firstResolvedPromise(signalPromise.map(x => x.promise)).then(_ref13 => {
+      let resolvedPromise = _ref13.promise;
       return signalPromise.filter(x => x.promise === resolvedPromise)[0].signal;
     });
   });
@@ -202,6 +212,8 @@
       return iterator.next(...arguments);
     });
   };
+
+  const runGimgen = exports.runGimgen = generator => gimgen(generator)();
 
   const invokableGimgen = exports.invokableGimgen = defineGenerator => function () {
     let nextInvocationSignal = { trigger: () => {} };

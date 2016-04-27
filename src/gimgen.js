@@ -34,12 +34,16 @@ export const createSignal = (name, propsOrCreatePromise) => {
 // Usage:
 //  yield domEventToSignal(document.querySelector('#log-in', 'click'))
 export const domEventToSignal = (el, eventName) =>
-  createSignal(`DOM event ${eventName}`, () => new Promise(resolve => {
-    el.addEventListener(eventName, function triggerResolve(...args){
-      el.removeEventListener(eventName, triggerResolve)
-      resolve(...args)
-    })
-  }))()
+  createSignal(`DOM event ${eventName}`, {
+    createPromise: ({setState}) => new Promise(resolve => {
+      el.addEventListener(eventName, function triggerResolve(event){
+        el.removeEventListener(eventName, triggerResolve)
+        setState(event)
+        resolve(event)
+      })
+    }),
+    getLastEvent: ({state}) => state,
+})()
 
 // Convert a then-able promise to a signal
 // Usage:
@@ -99,6 +103,8 @@ export const gimgen = (generator) => (...generatorArgs) => {
     const iterator = generator(...generatorArgs);
     runPromises((...args) => iterator.next(...args))
 }
+
+export const runGimgen = (generator) => gimgen(generator)()
 
 export const invokableGimgen = (defineGenerator) => (...generatorArgs) => {
     let nextInvocationSignal = {trigger: () => {}}

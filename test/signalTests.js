@@ -1,8 +1,12 @@
 import sinon from 'sinon'
 import {assert} from 'chai'
 import SyncPromise from 'sync-promise'
+import mockBrowser from 'mock-browser'
+const mock = new mockBrowser.mocks.MockBrowser();
+const CustomEvent = mockBrowser.mocks.MockBrowser.createWindow().CustomEvent
+const document = mock.getDocument()
 
-import { firstResolvedPromise, manualSignal, anySignal } from '../src/gimgen'
+import { firstResolvedPromise, manualSignal, anySignal, domEventToSignal, runGimgen } from '../src/gimgen'
 
 const createDeferred = () => {
   let resolve = null, reject = null
@@ -91,5 +95,27 @@ describe(`anySignal`, () => {
   describe(`trigger second signal`, () => {
     beforeEach(() => s2.trigger('b'))
     it(`triggers with second signal`, () => assert(firstSignal.calledWith(s2)) )
+  })
+})
+
+describe('domEventToSignal', () => {
+  let el, callback
+  beforeEach(() => {
+    callback = sinon.spy()
+    el = document.createElement('div')
+    const sig = domEventToSignal(el, 'testEvent')
+    runGimgen(function*(){
+      while(true) {
+        yield sig
+        callback(sig.getLastEvent().detail)
+      }
+    })
+  })
+
+  it(`doesn't trigger initially`, () => assert(!callback.called))
+
+  describe(`trigger event`, () => {
+    beforeEach(() => el.dispatchEvent(new CustomEvent('testEvent', {detail: 'a'})))
+    it(`recieves signal`, () => assert.equal(callback.lastCall.args[0], 'a'))
   })
 })
