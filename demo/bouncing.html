@@ -39,7 +39,7 @@
 </main>
 
 <script id="code">
-const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal} } = window
+const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal} } = window
 const { virtualDom: {h, diff, patch, create} } = window
 const container = document.querySelector('#game-container')
 const containerHeight = container.offsetHeight
@@ -76,17 +76,27 @@ runGimgen(function*() {
 	}
 }	)
 
-const movePaddle = gimgen(function*(paddle, up, down){
+const keysDown = controlSignal(function*({emit}) {
 	const keydown = domEventToSignal(document, 'keydown')
+	const keyup = domEventToSignal(document, 'keyup')
+	const currentlyPressed = {}
+	let interaction
+	while(interaction = yield anySignal(keydown, keyup)) {
+		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
+		emit(currentlyPressed)
+	}
+})
+
+const movePaddle = gimgen(function*(paddle, up, down){
 	while(true) {
-		yield keydown
-		const {code} = keydown.getLastEvent()
-		if(code === up)
+		const keysPressed = yield keysDown
+		if(keysPressed[up])
 			paddle.top -= 5;
-		else if(code === down)
+		else if(keysPressed[down])
 			paddle.top += 5;
 	}
 })
+
 
 movePaddle(state.left.paddle, 'KeyQ', 'KeyW')
 movePaddle(state.right.paddle, 'KeyO', 'KeyP')

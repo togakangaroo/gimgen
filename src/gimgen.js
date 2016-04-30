@@ -91,6 +91,21 @@ export const anySignal = createSignal('anySignal', (_, ...signals) => {
           )
 })
 
+// Create a signal used to control other signals in a finer detail. Takes a  signal generator that
+// takes a parameter with an emit method. Returns a signal that will trigger when the emit method is called
+// Usage:
+// const keysDown = controlSignal(function*({emit}) {
+// 	const keydown = domEventToSignal(document, 'keydown')
+// 	const keyup = domEventToSignal(document, 'keyup')
+// 	const currentlyPressed = {}
+// 	let interaction
+// 	while(interaction = yield anySignal(keydown, keyup)) {
+// 		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
+// 		emit(currentlyPressed)
+// 	}
+// })
+// ...
+// const keysPressed = yield keysDown
 export const controlSignal = createSignal('controlSignal', {
   getInitialState: (signalGenerator) => {
     const triggerSignal = manualSignal()

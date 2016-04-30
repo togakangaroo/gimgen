@@ -17,10 +17,6 @@
     value: true
   });
 
-  function _objectDestructuringEmpty(obj) {
-    if (obj == null) throw new TypeError("Cannot destructure undefined");
-  }
-
   var _slicedToArray = function () {
     function sliceIterator(arr, i) {
       var _arr = [];
@@ -111,7 +107,7 @@
         signalInvocationArgs[_key3] = arguments[_key3];
       }
 
-      let state = createInitial();
+      let state = createInitial(...signalInvocationArgs);
       const setState = newState => state = newState;
       const getFirstParam = () => ({ state, setState });
       return Object.assign({ toString: () => name }, rebindFuncs(templateEntries, getFirstParam), { createPromise: () => createPromise(getFirstParam(), ...signalInvocationArgs) });
@@ -146,11 +142,7 @@
   // Signal that triggers in the passed in amount of ms
   // Usage:
   //  yield timeoutSignal(100)
-  const timeoutSignal = exports.timeoutSignal = createSignal('timeoutSignal', (_ref9, ms) => {
-    _objectDestructuringEmpty(_ref9);
-
-    return new Promise(resolve => setTimeout(resolve, ms));
-  });
+  const timeoutSignal = exports.timeoutSignal = createSignal('timeoutSignal', (_, ms) => new Promise(resolve => setTimeout(resolve, ms)));
 
   // Signal that you trigger manually
   // Usage:
@@ -161,18 +153,18 @@
   //  sig.trigger(1, 2, 3)
   const manualSignal = exports.manualSignal = createSignal('manualSignal', {
     getInitialState: () => [],
-    createPromise: _ref10 => {
-      let toNotify = _ref10.state;
-      let setState = _ref10.setState;
+    createPromise: _ref9 => {
+      let toNotify = _ref9.state;
+      let setState = _ref9.setState;
       return new Promise(resolve => setState([resolve, ...toNotify]));
     },
-    trigger: function (_ref11) {
+    trigger: function (_ref10) {
       for (var _len4 = arguments.length, args = Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
         args[_key4 - 1] = arguments[_key4];
       }
 
-      let toNotify = _ref11.state;
-      let setState = _ref11.setState;
+      let toNotify = _ref10.state;
+      let setState = _ref10.setState;
 
       if (args.length > 1) setState([]);
       toNotify.forEach(fn => fn(...args));
@@ -184,18 +176,31 @@
   // Signal that resolves when any of the signals passed in resolve
   // Usage:
   //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
-  const anySignal = exports.anySignal = createSignal('anySignal', function (_ref12) {
+  const anySignal = exports.anySignal = createSignal('anySignal', function (_) {
     for (var _len5 = arguments.length, signals = Array(_len5 > 1 ? _len5 - 1 : 0), _key5 = 1; _key5 < _len5; _key5++) {
       signals[_key5 - 1] = arguments[_key5];
     }
 
-    _objectDestructuringEmpty(_ref12);
-
     const signalPromise = signals.map(signal => ({ signal, promise: signal.createPromise() }));
-    return firstResolvedPromise(signalPromise.map(x => x.promise)).then(_ref13 => {
-      let resolvedPromise = _ref13.promise;
+    return firstResolvedPromise(signalPromise.map(x => x.promise)).then(_ref11 => {
+      let resolvedPromise = _ref11.promise;
       return signalPromise.filter(x => x.promise === resolvedPromise)[0].signal;
     });
+  });
+
+  // Create a signal used to control other signals in a finer detail. Takes a  signal generator that
+  // takes a parameter with an emit method. Returns a signal that will trigger when the emit method is called
+  // Usage:
+  const controlSignal = exports.controlSignal = createSignal('controlSignal', {
+    getInitialState: signalGenerator => {
+      const triggerSignal = manualSignal();
+      gimgen(signalGenerator)({ emit: triggerSignal.trigger });
+      return triggerSignal;
+    },
+    createPromise: _ref12 => {
+      let state = _ref12.state;
+      return state.createPromise();
+    }
   });
 
   const runPromises = (getNext, valueToYield) => {
@@ -205,7 +210,6 @@
       runPromises(getNext, promiseParam);
     });
   };
-
   const gimgen = exports.gimgen = generator => function () {
     const iterator = generator(...arguments);
     runPromises(function () {
