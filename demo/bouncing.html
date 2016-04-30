@@ -61,9 +61,12 @@ const render = ({
 		h('.paddle.right', {style: pick(rightPaddle, 'top', 'height') }),
 	])
 
+//Create our own signal that will trigger on next animation frame
 const requestAnimationFrame = createSignal('requestAnimationFrame', () =>
+	//the second parameter is the createPromise function which will be called on yield and simply generates
+	//a promise whose resolution tells gimgen to finish yielding
 	new Promise(resolve => window.requestAnimationFrame(resolve))
-)()
+)() //We just need a single instance so invoke the signal factory
 runGimgen(function*() {
 	const tick = timeoutSignal(50)
 	let tree = render(state)
@@ -73,7 +76,7 @@ runGimgen(function*() {
 	while(true) {
 		yield tick
 		yield requestAnimationFrame
-		const newTree = render(state)
+		const newTree = render(state) //virtual-dom stuff
 		patch(rootNode, diff(tree, newTree))
 		tree = newTree
 	}
