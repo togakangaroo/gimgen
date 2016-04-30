@@ -1,6 +1,5 @@
 body {
 	height: 100vh;
-	overflow: hidden;
 	min-height: 100vh;
 	display: flex;
 	background-color: cornsilk;
@@ -8,14 +7,11 @@ body {
 	margin: 0;
 }
 main {
+	width: 90%;
 	font-size: 160%;
 	margin: auto;
 	padding: 2em;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-}
-pre {
-	max-height: 12em;
-	overflow: scroll;
 }
