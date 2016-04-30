@@ -39,29 +39,31 @@
 </main>
 
 <script id="code">
-const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal} } = window
+const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal, createSignal} } = window
 const { virtualDom: {h, diff, patch, create} } = window
 const container = document.querySelector('#game-container')
 const containerHeight = container.offsetHeight
 
 const clone = x => Object.assign({}, x)
+const clamp = (v, min, max) => v < min ? min : v > max ? max : v
+const pick = (obj, ...props) => props.reduce((x, p) => (x[p] = obj[p], x), {})
 
 const state = {
-	left: { paddle: { top: containerHeight/2 - 35, height: 70 } },
-	right: { paddle: { top: containerHeight/2 - 35, height: 70 } },
+	leftPaddle: { top: containerHeight/2 - 35, height: 70, speed: 8 },
+	rightPaddle: { top: containerHeight/2 - 35, height: 70, speed: 8 },
 }
 
-counter = 0;
-
 const render = ({
-	left: {paddle: leftPaddle},
-	right: {paddle: rightPaddle},
+	leftPaddle, rightPaddle,
 }) =>
 	h('.board', [
-		h('.paddle.left', {style: clone(leftPaddle) }), //must be a new object reference for diffing to work
-		h('.paddle.right', {style: clone(rightPaddle) }),
+		h('.paddle.left', {style: pick(leftPaddle, 'top', 'height') }), //must be a new object reference for diffing to work
+		h('.paddle.right', {style: pick(rightPaddle, 'top', 'height') }),
 	])
 
+const requestAnimationFrame = createSignal('requestAnimationFrame', () =>
+	new Promise(resolve => window.requestAnimationFrame(resolve))
+)()
 runGimgen(function*() {
 	const tick = timeoutSignal(50)
 	let tree = render(state)
@@ -70,6 +72,7 @@ runGimgen(function*() {
 
 	while(true) {
 		yield tick
+		yield requestAnimationFrame
 		const newTree = render(state)
 		patch(rootNode, diff(tree, newTree))
 		tree = newTree
@@ -91,15 +94,15 @@ const movePaddle = gimgen(function*(paddle, up, down){
 	while(true) {
 		const keysPressed = yield keysDown
 		if(keysPressed[up])
-			paddle.top -= 5;
+			paddle.top -= paddle.speed;
 		else if(keysPressed[down])
-			paddle.top += 5;
+			paddle.top += paddle.speed;
+		paddle.top = clamp(paddle.top, 0, containerHeight - paddle.height)
 	}
 })
 
-
-movePaddle(state.left.paddle, 'KeyQ', 'KeyW')
-movePaddle(state.right.paddle, 'KeyO', 'KeyP')
+movePaddle(state.leftPaddle, 'KeyQ', 'KeyW')
+movePaddle(state.rightPaddle, 'KeyO', 'KeyP')
 </script>
 <script>
 document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
