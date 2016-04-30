@@ -39,7 +39,7 @@
 </main>
 
 <script id="code">
-const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal, createSignal} } = window
+const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal, createSignalFactory} } = window
 const { virtualDom: {h, diff, patch, create} } = window
 const container = document.querySelector('#game-container')
 const containerHeight = container.offsetHeight
@@ -62,7 +62,7 @@ const render = ({
 	])
 
 //Create our own signal that will trigger on next animation frame
-const requestAnimationFrame = createSignal('requestAnimationFrame', () =>
+const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
 	//the second parameter is the createPromise function which will be called on yield and simply generates
 	//a promise whose resolution tells gimgen to finish yielding
 	new Promise(resolve => window.requestAnimationFrame(resolve))
@@ -82,6 +82,8 @@ runGimgen(function*() {
 	}
 }	)
 
+// The browser emits only a single keydown event at a time so we need to aggregate keydown events
+// to know which keys are pressed at any given moment
 const keysDown = controlSignal(function*({emit}) {
 	const keydown = domEventToSignal(document, 'keydown')
 	const keyup = domEventToSignal(document, 'keyup')

@@ -11,9 +11,9 @@ const rebindFuncs = (entries, getFirstParam) =>
 // Returns function that when invoked will return a representation of a signal.
 // A signal is anything with a `createPromise` method
 // See below for usages.
-export const createSignal = (name, propsOrCreatePromise) => {
+export const createSignalFactory = (name, propsOrCreatePromise) => {
   if(isFunction(propsOrCreatePromise))
-    return createSignal(name, {createPromise: propsOrCreatePromise})
+    return createSignalFactory(name, {createPromise: propsOrCreatePromise})
 
   const { createPromise, getInitialState=null } = propsOrCreatePromise
   const templateEntries = omitEntries(propsOrCreatePromise, 'createPromise', 'getInitialState')
@@ -34,7 +34,7 @@ export const createSignal = (name, propsOrCreatePromise) => {
 // Usage:
 //  yield domEventToSignal(document.querySelector('#log-in', 'click'))
 export const domEventToSignal = (el, eventName) =>
-  createSignal(`DOM event ${eventName}`, {
+  createSignalFactory(`DOM event ${eventName}`, {
     createPromise: ({setState}) => new Promise(resolve => {
       el.addEventListener(eventName, function triggerResolve(event){
         el.removeEventListener(eventName, triggerResolve)
@@ -48,12 +48,12 @@ export const domEventToSignal = (el, eventName) =>
 // Convert a then-able promise to a signal
 // Usage:
 //  yield promiseToSignal($.get('/data'))
-export const promiseToSignal = promise => createSignal('promiseSignal', () => promise)()
+export const promiseToSignal = promise => createSignalFactory('promiseSignal', () => promise)()
 
 // Signal that triggers in the passed in amount of ms
 // Usage:
 //  yield timeoutSignal(100)
-export const timeoutSignal = createSignal('timeoutSignal', (_, ms) =>
+export const timeoutSignal = createSignalFactory('timeoutSignal', (_, ms) =>
                         new Promise(resolve => setTimeout(resolve, ms) )
                       )
 
@@ -64,7 +64,7 @@ export const timeoutSignal = createSignal('timeoutSignal', (_, ms) =>
 //  sig.createPromise().then((...args) => doStuff(...args))
 //  sig.createPromise().then((...args) => doOtherStuff(...args))
 //  sig.trigger(1, 2, 3)
-export const manualSignal = createSignal('manualSignal', {
+export const manualSignal = createSignalFactory('manualSignal', {
   getInitialState: () => [],
   createPromise: ({state: toNotify, setState}) =>
     new Promise(resolve => setState([resolve, ...toNotify])),
@@ -83,7 +83,7 @@ export const firstResolvedPromise = (promises) =>
 // Signal that resolves when any of the signals passed in resolve
 // Usage:
 //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
-export const anySignal = createSignal('anySignal', (_, ...signals) => {
+export const anySignal = createSignalFactory('anySignal', (_, ...signals) => {
   const signalPromise = signals.map(signal => ({signal, promise: signal.createPromise()}) )
   return firstResolvedPromise(signalPromise.map(x => x.promise))
           .then(({promise:resolvedPromise}) =>
@@ -106,7 +106,7 @@ export const anySignal = createSignal('anySignal', (_, ...signals) => {
 // })
 // ...
 // const keysPressed = yield keysDown
-export const controlSignal = createSignal('controlSignal', {
+export const controlSignal = createSignalFactory('controlSignal', {
   getInitialState: (signalGenerator) => {
     const triggerSignal = manualSignal()
     gimgen(signalGenerator)({emit: triggerSignal.trigger})
