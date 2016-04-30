@@ -17,7 +17,7 @@
     "babel-preset-node5": "^10.5.0",
     "babel-register": "^6.5.2",
     "chai": "^3.5.0",
-    "eslint": "^2.2.0",
+    "eslint": "^2.9.0",
     "eslint-plugin-chai": "0.0.1",
     "eslint-plugin-mocha": "^2.0.0",
     "eslint-plugin-sinon": "^0.1.0",

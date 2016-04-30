@@ -19,7 +19,7 @@ export const createSignal = (name, propsOrCreatePromise) => {
   const templateEntries = omitEntries(propsOrCreatePromise, 'createPromise', 'getInitialState')
   const createInitial = isFunction(getInitialState) ? getInitialState : () => getInitialState;
   return (...signalInvocationArgs)  => {
-    let state = createInitial()
+    let state = createInitial(...signalInvocationArgs)
     const setState = newState => state = newState
     const getFirstParam = () => ({state, setState})
     return Object.assign(
@@ -53,7 +53,7 @@ export const promiseToSignal = promise => createSignal('promiseSignal', () => pr
 // Signal that triggers in the passed in amount of ms
 // Usage:
 //  yield timeoutSignal(100)
-export const timeoutSignal = createSignal('timeoutSignal', ({}, ms) =>
+export const timeoutSignal = createSignal('timeoutSignal', (_, ms) =>
                         new Promise(resolve => setTimeout(resolve, ms) )
                       )
 
@@ -83,12 +83,21 @@ export const firstResolvedPromise = (promises) =>
 // Signal that resolves when any of the signals passed in resolve
 // Usage:
 //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
-export const anySignal = createSignal('anySignal', ({}, ...signals) => {
+export const anySignal = createSignal('anySignal', (_, ...signals) => {
   const signalPromise = signals.map(signal => ({signal, promise: signal.createPromise()}) )
   return firstResolvedPromise(signalPromise.map(x => x.promise))
           .then(({promise:resolvedPromise}) =>
             signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
           )
+})
+
+export const controlSignal = createSignal('controlSignal', {
+  getInitialState: (signalGenerator) => {
+    const triggerSignal = manualSignal()
+    gimgen(signalGenerator)({emit: triggerSignal.trigger})
+    return triggerSignal
+  },
+  createPromise: ({state}) => state.createPromise()
 })
 
 const runPromises = (getNext, valueToYield) => {
@@ -98,7 +107,6 @@ const runPromises = (getNext, valueToYield) => {
     runPromises(getNext, promiseParam)
   })
 }
-
 export const gimgen = (generator) => (...generatorArgs) => {
     const iterator = generator(...generatorArgs);
     runPromises((...args) => iterator.next(...args))

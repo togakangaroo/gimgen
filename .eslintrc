@@ -1,4 +1,11 @@
 {
+ "parserOptions": {
+        "ecmaVersion": 6,
+        "sourceType": "module",
+        "ecmaFeatures": {
+
+        }
+    },
     "rules": {
         "indent": [
             0,
@@ -16,24 +23,18 @@
             0,
             "never"
         ],
-        "no-empty-pattern": [0],
         "comma-dangle": [0],
-        "no-constant-condition": [0],
-        "mocha/no-exclusive-tests": [2]
+        "no-constant-condition": [0]
     },
     "env": {
         "es6": true,
         "browser": true,
-        "node": true,
         "mocha": true
     },
     "extends": "eslint:recommended",
-    "parserOptions": {
-        "sourceType": "module"
+    "globals": {
+      "global": true
     },
     "plugins": [
-        "mocha",
-        "chai",
-        "sinon"
     ]
 }
