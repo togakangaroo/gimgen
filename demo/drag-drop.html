@@ -22,18 +22,18 @@
 </main>
 
 <script id="code">
-const gg = window.gimgen
+const {gimgen, domEventToSignal, anySignal} = window.gimgen
 
-const makeDraggable = gg.gimgen(function*(el) {
-	const mouseDown = gg.domEventToSignal(el, 'mousedown')
-	const mouseMoved = gg.domEventToSignal(document, 'mousemove')
-	const mouseUp = gg.domEventToSignal(document, 'mouseup')
+const makeDraggable = gimgen(function*(el) {
+	const mouseDown = domEventToSignal(el, 'mousedown')
+	const mouseMoved = domEventToSignal(document, 'mousemove')
+	const mouseUp = domEventToSignal(document, 'mouseup')
 
 	while(true) {
 		yield mouseDown
 		el.style.position = 'absolute'
 
-		while(mouseMoved === (yield gg.anySignal(mouseMoved, mouseUp))) {
+		while(mouseMoved === (yield anySignal(mouseMoved, mouseUp))) {
 			const ev = mouseMoved.getLastEvent()
 			console.log(ev.clientX, ev.clientY)
 			Object.assign(el.style, {left: `${ev.clientX}px`, top: `${ev.clientY}px`})

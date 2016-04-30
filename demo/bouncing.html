@@ -1,0 +1,98 @@
+<link href="./common.css" rel="stylesheet" />
+<style>
+#game-container {
+	width: 100%;
+	height: 600px;
+	background-color: beige;
+	outline: 1px solid blue;
+	position: relative;
+	display: flex;
+}
+.board {
+	flex: 1;
+}
+.paddle {
+	width: 15px;
+	background-color: black;
+	position: absolute;
+}
+.left {
+	left: 10px;
+}
+.right {
+	right: 10px;
+}
+</style>
+<script src="../dist/gimgen.js"></script>
+<script src="https://rawgit.com/Matt-Esch/virtual-dom/master/dist/virtual-dom.js"></script>
+
+<main>
+	<p>
+		Use <kbd>Q<kbd> and <kbd>W</kbd> to move the left paddle and <kbd>O<kbd> and <kbd>P</kbd> to move the right paddle
+	</p>
+	<p>
+		See code below (or even better look at <a href="https://github.com/togakangaroo/gimgen/blob/master/demo/bouncing.html">source</a> or devtools)
+	</p>
+	<section id="game-container">
+	</section>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
+
+<script id="code">
+const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal} } = window
+const { virtualDom: {h, diff, patch, create} } = window
+const container = document.querySelector('#game-container')
+const containerHeight = container.offsetHeight
+
+const clone = x => Object.assign({}, x)
+
+const state = {
+	left: { paddle: { top: containerHeight/2 - 35, height: 70 } },
+	right: { paddle: { top: containerHeight/2 - 35, height: 70 } },
+}
+
+counter = 0;
+
+const render = ({
+	left: {paddle: leftPaddle},
+	right: {paddle: rightPaddle},
+}) =>
+	h('.board', [
+		h('.paddle.left', {style: clone(leftPaddle) }), //must be a new object reference for diffing to work
+		h('.paddle.right', {style: clone(rightPaddle) }),
+	])
+
+runGimgen(function*() {
+	const tick = timeoutSignal(50)
+	let tree = render(state)
+	let rootNode = create(tree)
+	container.appendChild(rootNode)
+
+	while(true) {
+		yield tick
+		const newTree = render(state)
+		patch(rootNode, diff(tree, newTree))
+		tree = newTree
+	}
+}	)
+
+const movePaddle = gimgen(function*(paddle, up, down){
+	const keydown = domEventToSignal(document, 'keydown')
+	while(true) {
+		yield keydown
+		const {code} = keydown.getLastEvent()
+		if(code === up)
+			paddle.top -= 5;
+		else if(code === down)
+			paddle.top += 5;
+	}
+})
+
+movePaddle(state.left.paddle, 'KeyQ', 'KeyW')
+movePaddle(state.right.paddle, 'KeyO', 'KeyP')
+</script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />

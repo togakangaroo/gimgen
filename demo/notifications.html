@@ -53,27 +53,27 @@ form *  {
 </main>
 
 <script id="code">
-const gg = window.gimgen
+const {gimgen, timeoutSignal, domEventToSignal, anySignal} = window.gimgen
 
 const notificationsArea = document.querySelector('#notifications-area')
 
-const timeout3sec = gg.timeoutSignal(3000)
-const timeout2sec = gg.timeoutSignal(2000)
+const timeout3sec = timeoutSignal(3000)
+const timeout2sec = timeoutSignal(2000)
 
-const showNotification = gg.gimgen(function*(msg) {
+const showNotification = gimgen(function*(msg) {
   const el = document.createElement('li')
   el.textContent = msg
   notificationsArea.appendChild(el)
 
-	const mouseMoved = gg.domEventToSignal(el, 'mousemove')
-	const mouseOver = gg.domEventToSignal(el, 'mouseover')
-	const interaction = gg.anySignal(mouseMoved, mouseOver)
+	const mouseMoved = domEventToSignal(el, 'mousemove')
+	const mouseOver = domEventToSignal(el, 'mouseover')
+	const interaction = anySignal(mouseMoved, mouseOver)
 
 	do {
 	  el.classList.remove('hidden')
-	  while(timeout3sec !== (yield gg.anySignal(timeout3sec, interaction))) { }
+	  while(timeout3sec !== (yield anySignal(timeout3sec, interaction))) { }
 	  el.classList.add('hidden')
-	} while(timeout2sec !== (yield gg.anySignal(timeout2sec, interaction)))
+	} while(timeout2sec !== (yield anySignal(timeout2sec, interaction)))
   el.remove()
 })
 
