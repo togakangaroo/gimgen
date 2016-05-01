@@ -1,0 +1,41 @@
+<style>
+body {
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	font-size: 1.2em;
+	background-color: #D8FBFF;
+}
+main {
+	flex: 1;
+	max-width: 80%;
+	background-color: #FFFFA5;
+	padding: 1em;
+}
+a {
+	color: inherit;
+	font-weight: bold;
+}
+</style>
+<main>
+<h1>The heck is <a href="https://github.com/togakangaroo/gimgen/">gimgen</a>?</h1>
+
+<p>
+	As explained in the <a href="https://github.com/togakangaroo/gimgen/blob/master/README.md">README</a>, gimgen is a tiny,
+	simple library for inverting the flow of a javascript program and allowing you to use basic javascript constructs to work
+	in an reactive style. It also enables support for coroutines and a innovative way of creating function decorators.
+</p>
+
+<p>So what can you do with it?</p>
+
+<dl>
+	<dt><a href="demo/notifications.html">Notifications System</a></dt>
+		<dd>for an example of how to use gimgen to script chains of events in a timeline</dd>
+	<dt><a href="demo/drag-drop.html">Drag and drop</a></dt>
+		<dd>a demo of how gimgen can allow you to consume dom events while toggling between states</dd>
+	<dt><a href="demo/bouncing.html">Ping pong</a></dt>
+		<dd>show how to use gimgen to control event flows and create coroutines to create a simple game on top of <a href="https://github.com/Matt-Esch/virtual-dom">virtual-dom</a></dd>
+</dl>
+</main>

@@ -1,4 +1,4 @@
-**gimgen** is a simple micro-library that allows you to invert program flow through the use of javascript generators. In particular, this is useful when you need to make decisions based on order or data of events that come from multiple sources.
+**gimgen** is a simple micro-library that allows you to invert program flow through the use of javascript generators. In particular, this is useful when you need to make decisions based on order or data of events that come from multiple sources. It also allows you to create simple and powerful coroutines.
 
 What does this mean? Let's do this by example
 
@@ -71,7 +71,7 @@ At its heart a signal is a simple object with a `createPromise` method which ret
 { createPromise: () -> Promise }
 ```
 
-If you would like to create your own signals **gimgen** provides a convenience factory `createSignal` which takes a name (used for a `toString` implementation) and either a `createPromise` function or a configuration object containing a `createPromise` function
+If you would like to create your own signals **gimgen** provides a convenience factory `createSignalFactory` which takes a name (used for a `toString` implementation) and either a `createPromise` function or a configuration object containing a `createPromise` function
 
 ```js
 export const timeoutSignal = createSignal('timeoutSignal', ({}, ms) =>
