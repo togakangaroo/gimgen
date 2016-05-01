@@ -1,0 +1,92 @@
+<link href="./common.css" rel="stylesheet" />
+<script src="../dist/gimgen.js"></script>
+<style>
+.function-example {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-around;
+	align-items: center;
+	width: 100%;
+}
+.target {
+	box-sizing: border-box;
+	width: 200px;
+	height: 200px;
+	background-color: pink;
+	border: 2px sold black;
+}
+.result {
+	font-size: 200%;
+}
+</style>
+<main>
+	<p>
+		gimgen allows you to wrap a coroutine around a function and have invocations of the function themselves be signals.
+		This can make it very easy to implement certain functional decorations
+	</p>
+	<p>
+		Move your mouse over the pink area below. The number will increment every 1 second as long as you are moving your mouse (throttle).
+	</p>
+	<section id="throttle" class="function-example">
+		<div class="target"></div>
+		<p class="result"></p>
+	</section>
+	<p>
+		Move your mouse over the pink area below. The number will increment 1 second after you have stopped moving your mouse (debounce).
+	</p>
+	<section id="debounce" class="function-example">
+		<div class="target"></div>
+		<p class="result"></p>
+	</section>
+	<p>
+		See code below (or even better look at <a href="https://github.com/togakangaroo/gimgen/blob/master/demo/function-decoration.html">source</a> or devtools)
+	</p>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
+
+<script id="code">
+const { invokableGimgen, timeoutSignal, anySignal } = window.gimgen
+
+const incrementContentsOnEachInvocation = el => {
+	let counter = 0
+	return () => el.textContent = ++counter
+}
+
+/**********************************************************************
+Throttle
+**********************************************************************/
+const throttle = invokableGimgen(({invokedSignal}) => function*(ms, fn) {
+	const timeout = timeoutSignal(ms)
+  while(true) {
+    yield invokedSignal()
+    yield timeout
+    fn()
+  }
+})
+const incrementThrottle = incrementContentsOnEachInvocation(document.querySelector('#throttle .result'))
+document.querySelector('#throttle .target')
+	.addEventListener('mousemove', throttle(1000, incrementThrottle) )
+
+/**********************************************************************
+Debounce
+**********************************************************************/
+const debounce = invokableGimgen(({invokedSignal}) => function*(ms, fn) {
+  yield invokedSignal()
+  while(true) {
+    const timePassed = timeoutSignal(ms)
+    const nextSignal = yield anySignal(timePassed, invokedSignal())
+    if(timePassed === nextSignal) {
+      fn()
+      yield invokedSignal()
+    }
+  }
+})
+const incrementDebounce = incrementContentsOnEachInvocation(document.querySelector('#debounce .result'))
+document.querySelector('#debounce .target')
+	.addEventListener('mousemove', debounce(1000, incrementDebounce) )
+</script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />
