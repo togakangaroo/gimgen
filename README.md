@@ -5,7 +5,7 @@ So its kind of like [js-csp](https://github.com/ubolonton/js-csp) but smaller, a
 
 For examples [check out the demo page](https://togakangaroo.github.io/gimgen)
 
-# Support
+# Environment Support
 
 **gimgen** comes with a umd wrapper and is usable with amd, commonjs, or globals. While it is written with es2015, it is transpiled to
 regular es5. It should therefore work in any environment [that supports javascript generators](http://kangax.github.io/compat-table/es6/#test-generators).

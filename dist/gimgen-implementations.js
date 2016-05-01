@@ -17,19 +17,23 @@
     value: true
   });
   exports.after = exports.debounce = exports.throttle = exports.once = undefined;
-  const once = exports.once = (0, _gimgen.invokableGimgen)(_ref => {
-    let invokedSignal = _ref.invokedSignal;
+  var once = exports.once = (0, _gimgen.invokableGimgen)(function (_ref) {
+    var invokedSignal = _ref.invokedSignal;
     return function* (fn) {
-      let val;
+      var val = void 0;
       yield invokedSignal(function () {
-        return val = fn(...arguments);
+        return val = fn.apply(undefined, arguments);
       });
-      while (true) yield invokedSignal(() => val);
+      while (true) {
+        yield invokedSignal(function () {
+          return val;
+        });
+      }
     };
   });
 
-  const throttle = exports.throttle = (0, _gimgen.invokableGimgen)(_ref2 => {
-    let invokedSignal = _ref2.invokedSignal;
+  var throttle = exports.throttle = (0, _gimgen.invokableGimgen)(function (_ref2) {
+    var invokedSignal = _ref2.invokedSignal;
     return function* (ms, fn) {
       while (true) {
         yield invokedSignal();
@@ -39,13 +43,13 @@
     };
   });
 
-  const debounce = exports.debounce = (0, _gimgen.invokableGimgen)(_ref3 => {
-    let invokedSignal = _ref3.invokedSignal;
+  var debounce = exports.debounce = (0, _gimgen.invokableGimgen)(function (_ref3) {
+    var invokedSignal = _ref3.invokedSignal;
     return function* (ms, fn) {
       yield invokedSignal();
       while (true) {
-        const timePassed = (0, _gimgen.timeoutSignal)(ms);
-        const nextSignal = yield (0, _gimgen.anySignal)(timePassed, invokedSignal());
+        var timePassed = (0, _gimgen.timeoutSignal)(ms);
+        var nextSignal = yield (0, _gimgen.anySignal)(timePassed, invokedSignal());
         if (timePassed === nextSignal) {
           fn();
           yield invokedSignal();
@@ -54,11 +58,14 @@
     };
   });
 
-  const after = exports.after = (0, _gimgen.invokableGimgen)(_ref4 => {
-    let invokedSignal = _ref4.invokedSignal;
+  var after = exports.after = (0, _gimgen.invokableGimgen)(function (_ref4) {
+    var invokedSignal = _ref4.invokedSignal;
     return function* (count, fn) {
-      for (let i = 0; i < count; i += 1) yield invokedSignal(() => null);
-      while (true) {
+      for (var i = 0; i < count; i += 1) {
+        yield invokedSignal(function () {
+          return null;
+        });
+      }while (true) {
         yield invokedSignal(fn);
       }
     };

@@ -17,6 +17,18 @@
     value: true
   });
 
+  function _toConsumableArray(arr) {
+    if (Array.isArray(arr)) {
+      for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {
+        arr2[i] = arr[i];
+      }
+
+      return arr2;
+    } else {
+      return Array.from(arr);
+    }
+  }
+
   var _slicedToArray = function () {
     function sliceIterator(arr, i) {
       var _arr = [];
@@ -55,94 +67,122 @@
     };
   }();
 
-  const isFunction = x => 'function' === typeof x;
-  const contains = (arr, val) => ~arr.indexOf(val);
+  var isFunction = function (x) {
+    return 'function' === typeof x;
+  };
+  var contains = function (arr, val) {
+    return ~arr.indexOf(val);
+  };
 
-  const omitEntries = function (obj) {
+  var omitEntries = function (obj) {
     for (var _len = arguments.length, propsToOmit = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
       propsToOmit[_key - 1] = arguments[_key];
     }
 
-    return Object.keys(obj).map(k => [k, obj[k]]).filter(_ref => {
+    return Object.keys(obj).map(function (k) {
+      return [k, obj[k]];
+    }).filter(function (_ref) {
       var _ref2 = _slicedToArray(_ref, 1);
 
-      let key = _ref2[0];
+      var key = _ref2[0];
       return !contains(propsToOmit, key);
     });
   };
-  const rebindFuncs = (entries, getFirstParam) => entries.map(_ref3 => {
-    var _ref4 = _slicedToArray(_ref3, 2);
+  var rebindFuncs = function (entries, getFirstParam) {
+    return entries.map(function (_ref3) {
+      var _ref4 = _slicedToArray(_ref3, 2);
 
-    let key = _ref4[0];
-    let val = _ref4[1];
-    return [key, !isFunction(val) ? val : function () {
-      for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-        args[_key2] = arguments[_key2];
-      }
+      var key = _ref4[0];
+      var val = _ref4[1];
+      return [key, !isFunction(val) ? val : function () {
+        for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+          args[_key2] = arguments[_key2];
+        }
 
-      return val(getFirstParam(), ...args);
-    }];
-  }).reduce((obj, _ref5) => {
-    var _ref6 = _slicedToArray(_ref5, 2);
+        return val.apply(undefined, [getFirstParam()].concat(args));
+      }];
+    }).reduce(function (obj, _ref5) {
+      var _ref6 = _slicedToArray(_ref5, 2);
 
-    let key = _ref6[0];
-    let val = _ref6[1];
-    return obj[key] = val, obj;
-  }, {});
+      var key = _ref6[0];
+      var val = _ref6[1];
+      return obj[key] = val, obj;
+    }, {});
+  };
 
   // Returns function that when invoked will return a representation of a signal.
   // A signal is anything with a `createPromise` method
   // See below for usages.
-  const createSignalFactory = exports.createSignalFactory = (name, propsOrCreatePromise) => {
+  var createSignalFactory = exports.createSignalFactory = function (name, propsOrCreatePromise) {
     if (isFunction(propsOrCreatePromise)) return createSignalFactory(name, { createPromise: propsOrCreatePromise });
 
-    const createPromise = propsOrCreatePromise.createPromise;
+    var createPromise = propsOrCreatePromise.createPromise;
     var _propsOrCreatePromise = propsOrCreatePromise.getInitialState;
-    const getInitialState = _propsOrCreatePromise === undefined ? null : _propsOrCreatePromise;
+    var getInitialState = _propsOrCreatePromise === undefined ? null : _propsOrCreatePromise;
 
-    const templateEntries = omitEntries(propsOrCreatePromise, 'createPromise', 'getInitialState');
-    const createInitial = isFunction(getInitialState) ? getInitialState : () => getInitialState;
+    var templateEntries = omitEntries(propsOrCreatePromise, 'createPromise', 'getInitialState');
+    var createInitial = isFunction(getInitialState) ? getInitialState : function () {
+      return getInitialState;
+    };
     return function () {
       for (var _len3 = arguments.length, signalInvocationArgs = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
         signalInvocationArgs[_key3] = arguments[_key3];
       }
 
-      let state = createInitial(...signalInvocationArgs);
-      const setState = newState => state = newState;
-      const getFirstParam = () => ({ state, setState });
-      return Object.assign({ toString: () => name }, rebindFuncs(templateEntries, getFirstParam), { createPromise: () => createPromise(getFirstParam(), ...signalInvocationArgs) });
+      var state = createInitial.apply(undefined, signalInvocationArgs);
+      var setState = function (newState) {
+        return state = newState;
+      };
+      var getFirstParam = function () {
+        return { state: state, setState: setState };
+      };
+      return Object.assign({ toString: function () {
+          return name;
+        } }, rebindFuncs(templateEntries, getFirstParam), { createPromise: function () {
+          return createPromise.apply(undefined, [getFirstParam()].concat(signalInvocationArgs));
+        } });
     };
   };
 
   // Convert a DOM event to a signal
   // Usage:
-  //  yield domEventToSignal(document.querySelector('#log-in', 'click'))
-  const domEventToSignal = exports.domEventToSignal = (el, eventName) => createSignalFactory(`DOM event ${ eventName }`, {
-    createPromise: _ref7 => {
-      let setState = _ref7.setState;
-      return new Promise(resolve => {
-        el.addEventListener(eventName, function triggerResolve(event) {
-          el.removeEventListener(eventName, triggerResolve);
-          setState(event);
-          resolve(event);
+  //  yield domEventToSignal(document.querySelector('#log-in'), 'click')
+  var domEventToSignal = exports.domEventToSignal = function (el, eventName) {
+    return createSignalFactory('DOM event ' + eventName, {
+      createPromise: function (_ref7) {
+        var setState = _ref7.setState;
+        return new Promise(function (resolve) {
+          el.addEventListener(eventName, function triggerResolve(event) {
+            el.removeEventListener(eventName, triggerResolve);
+            setState(event);
+            resolve(event);
+          });
         });
-      });
-    },
-    getLastEvent: _ref8 => {
-      let state = _ref8.state;
-      return state;
-    }
-  })();
+      },
+      getLastEvent: function (_ref8) {
+        var state = _ref8.state;
+        return state;
+      }
+    })();
+  };
 
   // Convert a then-able promise to a signal
   // Usage:
   //  yield promiseToSignal($.get('/data'))
-  const promiseToSignal = exports.promiseToSignal = promise => createSignalFactory('promiseSignal', () => promise)();
+  var promiseToSignal = exports.promiseToSignal = function (promise) {
+    return createSignalFactory('promiseSignal', function () {
+      return promise;
+    })();
+  };
 
   // Signal that triggers in the passed in amount of ms
   // Usage:
   //  yield timeoutSignal(100)
-  const timeoutSignal = exports.timeoutSignal = createSignalFactory('timeoutSignal', (_, ms) => new Promise(resolve => setTimeout(resolve, ms)));
+  var timeoutSignal = exports.timeoutSignal = createSignalFactory('timeoutSignal', function (_, ms) {
+    return new Promise(function (resolve) {
+      return setTimeout(resolve, ms);
+    });
+  });
 
   // Signal that you trigger manually
   // Usage:
@@ -151,40 +191,60 @@
   //  sig.createPromise().then((...args) => doStuff(...args))
   //  sig.createPromise().then((...args) => doOtherStuff(...args))
   //  sig.trigger(1, 2, 3)
-  const manualSignal = exports.manualSignal = createSignalFactory('manualSignal', {
-    getInitialState: () => [],
-    createPromise: _ref9 => {
-      let toNotify = _ref9.state;
-      let setState = _ref9.setState;
-      return new Promise(resolve => setState([resolve, ...toNotify]));
+  var manualSignal = exports.manualSignal = createSignalFactory('manualSignal', {
+    getInitialState: function () {
+      return [];
+    },
+    createPromise: function (_ref9) {
+      var toNotify = _ref9.state;
+      var setState = _ref9.setState;
+      return new Promise(function (resolve) {
+        return setState([resolve].concat(_toConsumableArray(toNotify)));
+      });
     },
     trigger: function (_ref10) {
       for (var _len4 = arguments.length, args = Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
         args[_key4 - 1] = arguments[_key4];
       }
 
-      let toNotify = _ref10.state;
-      let setState = _ref10.setState;
+      var toNotify = _ref10.state;
+      var setState = _ref10.setState;
 
       if (args.length > 1) setState([]);
-      toNotify.forEach(fn => fn(...args));
+      toNotify.forEach(function (fn) {
+        return fn.apply(undefined, args);
+      });
     }
   });
 
-  const firstResolvedPromise = exports.firstResolvedPromise = promises => new Promise(resolve => promises.map(promise => promise.then(() => resolve({ promise }))));
+  var firstResolvedPromise = exports.firstResolvedPromise = function (promises) {
+    return new Promise(function (resolve) {
+      return promises.map(function (promise) {
+        return promise.then(function () {
+          return resolve({ promise: promise });
+        });
+      });
+    });
+  };
 
   // Signal that resolves when any of the signals passed in resolve
   // Usage:
   //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
-  const anySignal = exports.anySignal = createSignalFactory('anySignal', function (_) {
+  var anySignal = exports.anySignal = createSignalFactory('anySignal', function (_) {
     for (var _len5 = arguments.length, signals = Array(_len5 > 1 ? _len5 - 1 : 0), _key5 = 1; _key5 < _len5; _key5++) {
       signals[_key5 - 1] = arguments[_key5];
     }
 
-    const signalPromise = signals.map(signal => ({ signal, promise: signal.createPromise() }));
-    return firstResolvedPromise(signalPromise.map(x => x.promise)).then(_ref11 => {
-      let resolvedPromise = _ref11.promise;
-      return signalPromise.filter(x => x.promise === resolvedPromise)[0].signal;
+    var signalPromise = signals.map(function (signal) {
+      return { signal: signal, promise: signal.createPromise() };
+    });
+    return firstResolvedPromise(signalPromise.map(function (x) {
+      return x.promise;
+    })).then(function (_ref11) {
+      var resolvedPromise = _ref11.promise;
+      return signalPromise.filter(function (x) {
+        return x.promise === resolvedPromise;
+      })[0].signal;
     });
   });
 
@@ -203,50 +263,72 @@
   // })
   // ...
   // const keysPressed = yield keysDown
-  const controlSignal = exports.controlSignal = createSignalFactory('controlSignal', {
-    getInitialState: signalGenerator => {
-      const triggerSignal = manualSignal();
+  var controlSignal = exports.controlSignal = createSignalFactory('controlSignal', {
+    getInitialState: function (signalGenerator) {
+      var triggerSignal = manualSignal();
       gimgen(signalGenerator)({ emit: triggerSignal.trigger });
       return triggerSignal;
     },
-    createPromise: _ref12 => {
-      let state = _ref12.state;
+    createPromise: function (_ref12) {
+      var state = _ref12.state;
       return state.createPromise();
     }
   });
 
-  const runPromises = (getNext, valueToYield) => {
-    const current = getNext(valueToYield);
+  var runPromises = function (getNext, valueToYield) {
+    var current = getNext(valueToYield);
     if (current.done) return;
-    current.value.createPromise().then(promiseParam => {
+    current.value.createPromise().then(function (promiseParam) {
       runPromises(getNext, promiseParam);
     });
   };
-  const gimgen = exports.gimgen = generator => function () {
-    const iterator = generator(...arguments);
-    runPromises(function () {
-      return iterator.next(...arguments);
-    });
+  var gimgen = exports.gimgen = function (generator) {
+    return function () {
+      var iterator = generator.apply(undefined, arguments);
+      runPromises(function () {
+        return iterator.next.apply(iterator, arguments);
+      });
+    };
   };
 
-  const runGimgen = exports.runGimgen = generator => gimgen(generator)();
+  var runGimgen = exports.runGimgen = function (generator) {
+    return gimgen(generator)();
+  };
 
-  const invokableGimgen = exports.invokableGimgen = defineGenerator => function () {
-    let nextInvocationSignal = { trigger: () => {} };
-    let getNextReturn = () => {};
-    const setupInvokedSignal = resolveNextReturnFunc => function () {
-      getNextReturn = resolveNextReturnFunc(...arguments);
-      return nextInvocationSignal = manualSignal(...arguments);
-    };
-    const invokedSignalExact = setupInvokedSignal(x => () => x);
-    const invokedSignal = setupInvokedSignal(x => isFunction(x) ? x : () => x);
-
-    const invocationHelpers = { invokedSignalExact, invokedSignal };
-    gimgen(defineGenerator(invocationHelpers))(...arguments);
+  // Generate a function that takes a closure returning a gimgen generator. This returns a new function
+  // The closure will be passed an object containing an `invokedSignal` method. This
+  // will be a signal that emits when the function returned by invvokeableGimgen is invoked
+  //invokableGimgen(({invokedSignal}) => function*(...args)) -> function
+  var invokableGimgen = exports.invokableGimgen = function (defineGenerator) {
     return function () {
-      const res = getNextReturn(...arguments);
-      nextInvocationSignal.trigger(...arguments);
-      return res;
+      var nextInvocationSignal = { trigger: function () {} };
+      var getNextReturn = function () {};
+      var setupInvokedSignal = function (resolveNextReturnFunc) {
+        return function () {
+          getNextReturn = resolveNextReturnFunc.apply(undefined, arguments);
+          return nextInvocationSignal = manualSignal.apply(undefined, arguments);
+        };
+      };
+      var invokedSignalExact = setupInvokedSignal(function (x) {
+        return function () {
+          return x;
+        };
+      });
+      var invokedSignal = setupInvokedSignal(function (x) {
+        return isFunction(x) ? x : function () {
+          return x;
+        };
+      });
+
+      var invocationHelpers = { invokedSignalExact: invokedSignalExact, invokedSignal: invokedSignal };
+      gimgen(defineGenerator(invocationHelpers)).apply(undefined, arguments);
+      return function () {
+        var _nextInvocationSignal;
+
+        var res = getNextReturn.apply(undefined, arguments);
+        (_nextInvocationSignal = nextInvocationSignal).trigger.apply(_nextInvocationSignal, arguments);
+        return res;
+      };
     };
   };
 
