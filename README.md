@@ -1,28 +1,31 @@
-**gimgen** is a simple micro-library that allows you to use javascript generators to invert program flow
-and generate simple coroutines. This is especially useful when you need to make decisions based on order or data of events that come from multiple sources.
+**gimgen** is a javascript micro-library that uses generators to invert program flow and generate coroutines.
+This is especially useful when you need to make decisions based on a stream of events that come from multiple sources.
 
 So its kind of like [js-csp](https://github.com/ubolonton/js-csp) but smaller, and focused on control flow rather than on channels.
 
-For examples [check out the demo page](https://togakangaroo.github.io/gimgen)
+So its kind of like a limited form of functional reactive programming with [baconjs](https://baconjs.github.io/) but you can use
+javascript constructs for control flow
+
+[For examples check out the demo page](https://togakangaroo.github.io/gimgen)
 
 # Environment Support
 
 **gimgen** comes with a umd wrapper and is usable with amd, commonjs, or globals. While it is written with es2015, it is transpiled to
-regular es5. It should therefore work in any environment [that supports javascript generators](http://kangax.github.io/compat-table/es6/#test-generators).
+regular es5. It should therefore work in [any environment that supports or transpiles to javascript generators](http://kangax.github.io/compat-table/es6/#test-generators).
 
 # Background
 
-The key to understanding how this library works is to [understand generators](http://www.2ality.com/2015/03/es6-generators.html).
+The key to understanding how this library works is to [understand javascript generators](http://www.2ality.com/2015/03/es6-generators.html).
 
 While we won't go into this in depth, generators are fundamentally this
 
 * A generator declaration (the `function *` thing) gives you a function that when invoked returns an iterator
 * That iterator has `.next()` method.
 * Every time `iterator.next()` is invoked, the function executes until it hits a yield keyword. If the yield keyword is passed a value on its right hand side (eg `yield 5`), `iterator.next()` returns that value
-* The next time `iterator.next()` is called, the function runs starting with the previous yield keyword.
+* The next time `iterator.next()` is called, the function runs starting with where it left off at the previous yield keyword.
 
-If you've ever [looked into](http://www.2ality.com/2015/03/no-promises.html) how libraries like [co](https://www.npmjs.com/package/co)
-and the `await` keyword work. You realize that that all they do is that if `iterator.next()` returns a promise, the library/language will wait
+If you've ever [looked into](http://www.2ality.com/2015/03/no-promises.html) how libraries like [bluebird](http://bluebirdjs.com/docs/features.html#async), [co](https://www.npmjs.com/package/co),
+or the `await` keyword work, you realize that that all they do is that if `iterator.next()` returns a promise, the library/language will wait
 until that promise resolves before invoking `next()` again.
 
 ```js
@@ -32,15 +35,15 @@ co(function * () {
   const bestCustomer = customers[0]                                   //this runs after the first next() call
   const details = yield $.get(`/customer/${customers[0].id}/details`) //again start query, yield promise.
   console.log(details)                                                //co runs this after the second next() call
-})                                                                    //done
+})                                                                    //done - returns a promise that resolves when execution finishes
 ```
 
 **gimgen** simply builds on this concept by providing some structure around the returned promises. Rather than return a simple promise,
 when wrapping a generator with **gimgen** you return *signals* where **a signal is an object with a `createPromise`**
-method. Because signals are *promise factories* they can be yielded multiple times (enabling looping) and since they are objects they
-can maintain state and vary what happens when `createPromise` is called.
+method. Because signals are *promise factories* they can be yielded multiple times (enabling looping) and since they are objects, they
+can maintain state and (varying what happens when `createPromise` is called).
 
-This has some very powerful consequences
+This has some very powerful consequences.
 
 # Usage
 
@@ -48,26 +51,25 @@ The core function to start using **gimgen** is
 
 `gimgen(generator) -> function`
 
-This takes a generator and returns a function. Invoking the function will start running through the steps outlined in the generator. The generator
-should yield back signals (a signal is anything with a `createPromise` function which when invoked returns a promise). So the following will start
-two coroutines that will log every X milliseconds
+This takes a generator and returns a function. Invoking the function will start an instance of the generator and running through its steps. The generator
+should yield back signals. So the following will start two coroutines that will each log every 300 and 2000 milliseconds respectively
 
 ```js
 const { gimgen, timeoutSignal } = window.gimgen
 
-const logTimes = gimgen(function * (frequency) {
+const logTimes = gimgen(function * (name, frequency) {
   const elapsed = timeoutSignal(frequency)
   while(true) {
     yield elapsed
-    console.log(`saying hi at ${Date()}`)
+    console.log(`${name}: says hi at ${Date()}`)
   }
 })
 
-logTimes(300)
-logTimes(2000)
+logTimes("logger one", 300)
+logTimes("logger b", 2000)
 ```
 
-In the case where you would like to start the coroutine immediately, a function is provided that will simply start the coroutine running
+In the case where you would like to start the coroutine immediately, a function is provided that will simply start it running
 
 `runGimgen(generator) -> void`
 
@@ -84,10 +86,10 @@ This signal object can then be yielded back within your methods. [See demos](htt
 
 * `timeoutSignal(milliseconds)` - emits X milliseconds after being yielded
 * `domEventToSignal(domNode, eventName)` - emits the next time the given event occurs after being yielded. The signal has a `getLastEvent()->Event` method which is useful for accessing the dom event object.
-* `promiseToSignal(promise)` - emits when yielded and the wrapped promise is resolved (immediately if the promise is already resolved when yielded)
+* `promiseToSignal(promise)` - when yielded will emit when the wrapped promise becomes resolved or immediately if the promise is already resolved
 * `manualSignal()` - returns a signal object with a `.trigger(x)` method. When yielded emits the next time the object's `trigger()` method is invoked. The first parameter to the trigger is returned by the yield.
-* `anySignal(...signals)` - when yielded, returns the first of the passed in signals that emit. Useful when one of several things might happen next. (see notifications demo for usages)
-* `controlSignal(function * ({emit}))` - Takes a generator that is a **gimgen** coroutine. This will start executing immediately. When yielded, the signal will emit whenever the coroutine invokes the injected `emit` method. This is very useful for aggregating events.
+* `anySignal(...signals)` - when yielded, returns the first of the passed in signals that end up emitting. Useful when one of several things might happen next. (see notifications demo for usages)
+* `controlSignal(function * ({emit}))` - Takes a generator that is a **gimgen** coroutine. This will start executing immediately. When yielded, the signal will emit whenever the coroutine invokes the injected `emit` method. This is very useful for aggregating events. (see ping pong demo)
 
 ### Creating your own signals
 
