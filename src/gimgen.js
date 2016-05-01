@@ -32,7 +32,7 @@ export const createSignalFactory = (name, propsOrCreatePromise) => {
 
 // Convert a DOM event to a signal
 // Usage:
-//  yield domEventToSignal(document.querySelector('#log-in', 'click'))
+//  yield domEventToSignal(document.querySelector('#log-in'), 'click')
 export const domEventToSignal = (el, eventName) =>
   createSignalFactory(`DOM event ${eventName}`, {
     createPromise: ({setState}) => new Promise(resolve => {
@@ -129,6 +129,10 @@ export const gimgen = (generator) => (...generatorArgs) => {
 
 export const runGimgen = (generator) => gimgen(generator)()
 
+// Generate a function that takes a closure returning a gimgen generator. This returns a new function
+// The closure will be passed an object containing an `invokedSignal` method. This
+// will be a signal that emits when the function returned by invvokeableGimgen is invoked
+//invokableGimgen(({invokedSignal}) => function*(...args)) -> function
 export const invokableGimgen = (defineGenerator) => (...generatorArgs) => {
     let nextInvocationSignal = {trigger: () => {}}
     let getNextReturn = () => {}

@@ -39,12 +39,15 @@ form *  {
 
 <main>
 	<p>
-		Click below to show a notification for three seconds before starting to fade out. Hover you mouse over the notification to
-		stop it from fading or bring it back if fading has begun.
+		We want to be able to show pop-up notifications. A notification appears and stays visible for
+		three seconds stacking with previous ones. When a notification "disappears" it
+		must first acquire a `hidden` class to allow css transitions to animate it before being completely removed.
+		If the mouse is hovered over a particular notification it should fade back in and not be removed
+		as long as a mouse is moving over it.
 	</p>
 	<form>
 	  <input name="message" placeholder="Message" value="Notification Message">
-		<button>Show</button>
+		<button>Show Notification</button>
 	</form>
 	<p>
 		See code below (or even better look at <a href="https://github.com/togakangaroo/gimgen/blob/master/demo/notifications.html">source</a> or devtools)
