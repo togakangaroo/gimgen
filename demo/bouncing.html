@@ -55,8 +55,9 @@
 </main>
 
 <script id="code">
-const { gimgen: {gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, controlSignal, createSignalFactory} } = window
-const { virtualDom: {h, diff, patch, create} } = window
+const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
+				controlSignal, createSignalFactory } = window.gimgen
+const { h, diff, patch, create } = window.virtualDom
 const container = document.querySelector('#game-container')
 const containerHeight = container.offsetHeight
 const containerWidth = container.offsetWidth
@@ -76,10 +77,13 @@ const intersect = ([r1x1, r1y1, r1x2, r1y2], [r2x1, r2y1, r2x2, r2y2]) =>
 const rectOf = ({top, left, height, width}) => [top, left, top+height, left+width]
 const rand = (max, min=0) => Math.random() * (max-min) + min
 
+const halfHeight = containerHeight/2
 const state = {
-	leftPaddle: { top: containerHeight/2 - 35, width: 15, left: 10, height: 70, speed: 8 },
-	rightPaddle: { top: containerHeight/2 - 35, width: 15, left: containerWidth-40, height: 70, speed: 8 },
-	ball: { top: containerHeight/2, left: 100, height: 30, width: 30, speed: 18, direction: rand(2*Math.PI) } //direction is in radians around the z axis
+	leftPaddle: { top: halfHeight-35, left: 10, width: 15, height: 70, speed: 8 },
+	rightPaddle: { top: halfHeight-35, left: containerWidth-40, width: 15, height: 70, speed: 8 },
+	ball: { top: halfHeight, left: 100, height: 30, width: 30, speed: 18,
+					direction: rand(2*Math.PI), //direction is in radians around the z axis
+				}
 }
 
 const paddleStyleProps = ['top', 'left', 'width', 'height']
@@ -87,15 +91,16 @@ const render = ({
 	leftPaddle, rightPaddle, ball,
 }) =>
 	h('.board', [
-		h('.paddle.left', {style: pick(leftPaddle, ...paddleStyleProps) }), //must be a new object reference for diffing to work
+		//Note: for diffing to work style must be a different reference each time
+		h('.paddle.left', {style: pick(leftPaddle, ...paddleStyleProps) }),
 		h('.paddle.right', {style: pick(rightPaddle, ...paddleStyleProps) }),
 		h('.ball', {style: pick(ball, ...paddleStyleProps) }),
 	])
 
 //Create our own signal that will trigger on next animation frame
 const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
-	//the second parameter is the createPromise function which will be called on yield and simply generates
-	//a promise whose resolution tells gimgen to finish yielding
+	//the second parameter is the createPromise function which will be called on yield
+	//it simply generates a promise whose resolution tells gimgen to finish yielding
 	new Promise(resolve => window.requestAnimationFrame(resolve))
 )() //We just need a single instance so invoke the signal factory
 runGimgen(function* renderGameBoard() {
@@ -112,8 +117,8 @@ runGimgen(function* renderGameBoard() {
 	}
 })
 
-// The browser emits only a single keydown event at a time so we need to aggregate keydown events
-// to know which keys are pressed at any given moment
+// The browser emits only a single keydown event at a time so we need to aggregate
+// keydown events to know which keys are pressed at any given moment
 const keysDown = controlSignal(function*({emit}) {
 	const keydown = domEventToSignal(document, 'keydown')
 	const keyup = domEventToSignal(document, 'keyup')
