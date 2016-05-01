@@ -59,15 +59,18 @@
 </main>
 
 <script id="code">
+/***************************************************************
+Intialization, helper function declaration
+***************************************************************/
 const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
 				controlSignal, createSignalFactory } = window.gimgen
 const { h, diff, patch, create } = window.virtualDom
 const container = document.querySelector('#game-container')
 const containerHeight = container.offsetHeight
 const containerWidth = container.offsetWidth
-const tick = timeoutSignal(50) //this will serve as the game clock
+//this will serve as the game clock. Every time it is yielded we will emit in 50ms
+const tick = timeoutSignal(50)
 
-const clone = x => Object.assign({}, x)
 const clamp = (obj, prop, min, max) => {
 	const v = obj[prop]
 	if(v < min) return (obj[prop] = min, true)
@@ -82,14 +85,17 @@ const rectOf = ({top, left, height, width}) => [top, left, top+height, left+widt
 const rand = (max, min=0) => Math.random() * (max-min) + min
 
 const halfHeight = containerHeight/2
-const state = {
+const state = { //set up initial board state
 	leftPaddle: { top: halfHeight-35, left: 10, width: 15, height: 70, speed: 8 },
 	rightPaddle: { top: halfHeight-35, left: containerWidth-30, width: 15, height: 70, speed: 8 },
-	ball: { top: halfHeight, left: 100, height: 30, width: 30, speed: 18,
+	ball: { top: halfHeight, left: rand(200, containerWidth-200), height: 30, width: 30, speed: 18,
 					direction: rand(2*Math.PI), //direction is in radians around the z axis
 				}
 }
 
+/***************************************************************
+Rendering
+***************************************************************/
 const paddleStyleProps = ['top', 'left', 'width', 'height']
 const render = ({
 	leftPaddle, rightPaddle, ball,
@@ -101,16 +107,17 @@ const render = ({
 		h('.ball', {style: pick(ball, ...paddleStyleProps) }),
 	])
 
-//Create our own signal that will trigger on next animation frame
-const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
-	//the second parameter is the createPromise function which will be called on yield
-	//it simply generates a promise whose resolution tells gimgen to finish yielding
-	new Promise(resolve => window.requestAnimationFrame(resolve))
-)() //We just need a single instance so invoke the signal factory
+// Coroutine for actually rendering to the screen
 runGimgen(function* renderGameBoard() {
 	let tree = render(state)
 	let rootNode = create(tree)
 	container.appendChild(rootNode)
+	//Create our own signal that will be used to trigger on next animation frame
+	const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
+		//the second parameter is the createPromise function which will be called on yield
+		//it simply generates a promise whose resolution tells gimgen to finish yielding
+		new Promise(resolve => window.requestAnimationFrame(resolve))
+	)() //We just need a single instance so invoke the signal factory
 
 	while(true) {
 		yield tick
@@ -121,19 +128,28 @@ runGimgen(function* renderGameBoard() {
 	}
 })
 
+/***************************************************************
+Paddle Control
+***************************************************************/
 // The browser emits only a single keydown event at a time so we need to aggregate
-// keydown events to know which keys are pressed at any given moment
+// keydown events to know which keys are pressed at any given moment. (eg if q and w
+// are both pressed, the browser is only going to emit a w keydown)
+// Generate a signal which will do exactly that.
+// `keysDown` will be a signal that emits whenever any keydown is pressed and return
+// an object with true for the keycodes of all currently pressed keys
 const keysDown = controlSignal(function*({emit}) {
 	const keydown = domEventToSignal(document, 'keydown')
 	const keyup = domEventToSignal(document, 'keyup')
 	const currentlyPressed = {}
 	let interaction
 	while(interaction = yield anySignal(keydown, keyup)) {
+		//if interactionw as a keydown set to true, otherwise false
 		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
 		emit(currentlyPressed)
 	}
 })
-
+// Define a coroutine that will advance whenever a keysDown event (above) emits
+// and change a paddle's top depending on which keys are currently pressed
 const movePaddle = gimgen(function*(paddle, up, down){
 	while(true) {
 		const keysPressed = yield keysDown
@@ -144,23 +160,14 @@ const movePaddle = gimgen(function*(paddle, up, down){
 		clamp(paddle, 'top', 0, containerHeight - paddle.height)
 	}
 })
-
+//start a coroutine for each paddle
 movePaddle(state.leftPaddle, 'KeyQ', 'KeyW')
 movePaddle(state.rightPaddle, 'KeyO', 'KeyP')
 
-const ballMissed = function * (ball) {
-	container.classList.add('shot-scored')
-	yield timeoutSignal(2000)
-	container.classList.remove('shot-scored')
-	ball.speed = 12
-	ball.direction = rand(2*Math.PI)
-	ball.left = rand(containerWidth-300, 300)
-}
-const ballHitPaddle = (ball, newLeft) => {
-	ball.left = newLeft
-	ball.speed += 1
-	ball.direction = Math.PI - ball.direction
-}
+/***************************************************************
+Ball movement
+***************************************************************/
+// Coroutine for actually moving the ball, and collision/miss detection
 runGimgen(function* moveBall() {
 	const { ball, leftPaddle, rightPaddle } = state
 	while(true) {
@@ -174,11 +181,25 @@ runGimgen(function* moveBall() {
 			continue
 		}
 		if( intersect(rectOf(leftPaddle), rectOf(ball)))
-			ballHitPaddle(ball, leftPaddle.left + leftPaddle.width)
+			yield * ballHitPaddle(ball, leftPaddle.left + leftPaddle.width)
 		if( intersect(rectOf(rightPaddle), rectOf(ball)))
-			ballHitPaddle(ball, rightPaddle.left - ball.width)
+			yield * ballHitPaddle(ball, rightPaddle.left - ball.width)
 		if(clamp(ball, 'top', 0, containerHeight - 2*ball.height))
 			ball.direction = 0 - ball.direction
+	}
+
+	function * ballMissed(ball) {
+		container.classList.add('shot-scored')
+		yield timeoutSignal(2000)
+		container.classList.remove('shot-scored')
+		ball.speed = 12
+		ball.direction = rand(2*Math.PI)
+		ball.left = rand(containerWidth-300, 300)
+	}
+	function * ballHitPaddle(ball, newLeft) {
+		ball.left = newLeft
+		ball.speed += 1
+		ball.direction = Math.PI - ball.direction
 	}
 })
 </script>
