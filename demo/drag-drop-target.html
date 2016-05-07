@@ -1,0 +1,135 @@
+<link href="./common.css" rel="stylesheet" />
+<style>
+@keyframes wiggle {
+	0% { transform: rotateZ(0deg); }
+	25% { transform: rotateZ(10deg); }
+	50% { transform: rotateZ(0deg); }
+	75% { transform: rotateZ(-10deg); }
+}
+.draggable {
+	background-color: #002366;
+	width: 100px;
+	height: 100px;
+	position: absolute;
+	left: 0;
+	transition: background-color 1500ms;
+}
+.draggable.over {
+	background-color: orange;
+}
+.drop-target {
+	width: 200px;
+	height: 200px;
+	position: absolute;
+	opacity: .5;
+}
+.drop-target.targetted {
+	animation: wiggle .6s linear 0s infinite;
+}
+.drop-target.one {
+	background-color: red;
+	left: 300;
+}
+.drop-target.two {
+	background-color: green;
+	left: 450;
+}
+.draggable, .drop-target {
+	border: 3px solid #666;
+	box-sizing: border-box;
+}
+main p:nth-of-type(1) {
+	margin-top: 250px;
+}
+</style>
+<script src="../dist/gimgen.js"></script>
+
+<main>
+	<div class="draggable"></div>
+	<div class="drop-target one"></div>
+	<div class="drop-target two"></div>
+	<p>
+		The blue square supports drag and drop. Try dragging it over one of the squares.
+	</p>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
+
+<script id="code">
+const {gimgen, runGimgen, domEventToSignal, anySignal} = window.gimgen
+
+const makeDraggable = (el, dropTargets) => {
+	const mouseDown = domEventToSignal(el, 'mousedown')
+	const mouseMoved = domEventToSignal(document, 'mousemove')
+	const mouseUp = domEventToSignal(document, 'mouseup')
+	const targetsMouseEnters = dropTargets.map(t => domEventToSignal(t, 'mouseenter'))
+	const targetsMouseLeaves = dropTargets.map(t => domEventToSignal(t, 'mouseleave'))
+
+	// const isOrdered = (v1, v2, v3)  => v1 <= v2 && v2 <= v3
+	// const overlappedTargets = () =>{
+	// 	const r = el.getBoundingClientRect()
+	// 	dropTargets.filter(target => {
+	// 		const t = trget.getBoundingClientRect()
+	// 		return isOrdered(t.left, r.left, t.right) || isOrdered(t.left, r.right, t.right))
+	// 			&& 	(isOrdered(t.top, r.top, t.bottom) || isOrdered(t.top, r.bottom, t.bottom)
+	// 	})
+	// }
+
+	/*************
+	State Machine:
+	NotDragging
+		-> Dragging
+	Dragging
+		-> NotDragging
+		-> DraggingOver
+	DraggingOver
+		-> Dragging
+		-> Dropped
+	Dropped
+		-> NotDragging
+	**************/
+
+
+	let isDragging = false
+
+	runGimgen(function*() {
+		while(true) {
+			isDragging = false
+			yield mouseDown
+			isDragging = true
+			el.style.position = 'fixed'
+			el.style.zIndex = 100
+
+			while(mouseMoved === (yield anySignal(mouseMoved, mouseUp))) {
+				const ev = mouseMoved.getLastEvent()
+				console.log(ev.clientX, ev.clientY)
+				Object.assign(el.style, {left: `${ev.clientX}px`, top: `${ev.clientY}px`})
+			}
+		}
+	})
+	runGimgen(function*() {
+		while(true) {
+			const enter = yield anySignal(...targetsMouseEnters)
+			if(!isDragging) continue
+			const ev = enter.getLastEvent()
+			if(ev.target.matches('.drop-target'))
+				ev.target.classList.add('targetted')
+		}
+	})
+	runGimgen(function*() {
+		while(true) {
+			const enter = yield anySignal(...targetsMouseLeaves)
+			if(!isDragging) continue
+			const ev = enter.getLastEvent()
+			if(ev.target.matches('.drop-target'))
+				ev.target.classList.remove('targetted')
+		}
+	})
+}
+
+makeDraggable(document.querySelector('.draggable'), Array.from(document.querySelectorAll('.drop-target')))
+</script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />
