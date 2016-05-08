@@ -29,20 +29,24 @@
 .drop-target.targetted {
 	animation: wiggle .6s linear 0s infinite;
 }
+.drop-target.selected {
+	border: 8px solid black;
+}
 .drop-target.one {
 	background-color: red;
-	left: 300;
+	left: 300px;
 }
 .drop-target.two {
 	background-color: green;
-	left: 450;
+	left: 450px;
+	top: 150px;
 }
 .draggable, .drop-target {
 	border: 3px solid #666;
 	box-sizing: border-box;
 }
 main p:nth-of-type(1) {
-	margin-top: 250px;
+	margin-top: 350px;
 }
 </style>
 <script src="../dist/gimgen.js"></script>
@@ -52,66 +56,57 @@ main p:nth-of-type(1) {
 	<div class="drop-target one"></div>
 	<div class="drop-target two"></div>
 	<p>
-		The blue square supports drag and drop. Try dragging it over one of the squares.
+		The blue square supports drag and drop. Try dragging it over and dropping it into one of the squares.
+	</p>
+	<p>
+		This demonstrates several simultaneous state machines using generators and recursion to transition from state to state.
+		The draggable object gets its own draggable-object state machine. Each of the droppable areas gets their own instance of the
+		drop-target state machine.
 	</p>
 	<pre><code class="language-js" id="code-display"></code></pre>
 </main>
 
 <script id="code">
-const {gimgen, runGimgen, domEventToSignal, anySignal} = window.gimgen
+const {gimgen, runGimgen, domEventToSignal, anySignal, createSignalFactory} = window.gimgen
 
-const makeDraggable = gimgen(function*(el, dropTargets) {
+const makeDraggable = (el, dropTargets) => {
 	const targetMouseDown = domEventToSignal(el, 'mousedown')
 	const mouseMoved = domEventToSignal(document, 'mousemove')
 	const mouseUp = domEventToSignal(document, 'mouseup')
 	const targetsMouseEnters = dropTargets.map(t => domEventToSignal(t, 'mouseenter'))
 	const targetsMouseLeaves = dropTargets.map(t => domEventToSignal(t, 'mouseleave'))
 
+	//Helper functiosn
 	const isOrdered = (v1, v2, v3)  => v1 <= v2 && v2 <= v3
-	const overlappedTargets = () =>{
-		const r = el.getBoundingClientRect()
-		return dropTargets.filter(target => {
-			const t = target.getBoundingClientRect()
-			return (isOrdered(t.left, r.left, t.right) || isOrdered(t.left, r.right, t.right))
-				&& 	(isOrdered(t.top, r.top, t.bottom) || isOrdered(t.top, r.bottom, t.bottom))
-		})
+	const isOverlapping = (r, t) =>
+		(isOrdered(t.left, r.left, t.right) || isOrdered(t.left, r.right, t.right)) &&
+		(isOrdered(t.top, r.top, t.bottom) || isOrdered(t.top, r.bottom, t.bottom))
+	const overlappedTargets = () => {
+		const elRect = el.getBoundingClientRect()
+		return dropTargets.filter(target => isOverlapping(elRect, target.getBoundingClientRect()) )
 	}
 	const moveTarget = ({clientX, clientY}) =>
 		Object.assign(el.style, {left: `${clientX}px`, top: `${clientY}px`})
 	const targetToMouseMove  = sig =>
 		(mouseMoved === sig) && moveTarget(mouseMoved.getLastEvent())
 	const fixPosition = () => Object.assign(el.style, {position: 'fixed', zIndex: 100 })
+	const neverSignal = createSignalFactory('neverSignal', () => new Promise(() => {}))() //neverSignal signal
 
 	/*************
 	Draggable State Machine:
-		NotDragging
-			-> Dragging
-			-> DraggingOver
-		Dragging
-			-> NotDragging
-			-> DraggingOver
-		DraggingOver
-			-> Dragging
-			-> Dropped
-		Dropped
-			-> NotDragging
-			
-	Target State Machine:
-		Idle
-			-> Targetted
-		Targetted
-			-> Idle
-			-> Selected
-		Selected
-			-> Targetted
+		NotDragging -> Dragging, DraggingOver
+		Dragging -> NotDragging, DraggingOver
+		DraggingOver -> Dragging, Dropped
+		Dropped -> NotDragging
 	**************/
-	yield * notDragging()
+	runGimgen(notDragging)
 
-	function * notDragging() {
+	function * notDragging(preTransition) {
 		yield targetMouseDown
 		const ev = targetMouseDown.getLastEvent()
 		fixPosition()
 		moveTarget(ev)
+		preTransition && preTransition()
 		if(overlappedTargets().length)
 			yield * draggingOver()
 		else
@@ -120,7 +115,6 @@ const makeDraggable = gimgen(function*(el, dropTargets) {
 
 	function * dragging() {
 		fixPosition()
-		el.classList.remove('dropped')
 		while(true) {
 			const recieved = yield anySignal(mouseMoved, mouseUp)
 			if(mouseUp == recieved)
@@ -136,7 +130,7 @@ const makeDraggable = gimgen(function*(el, dropTargets) {
 		el.classList.add('over')
 		while(true) {
 			const recieved = yield anySignal(mouseMoved, mouseUp)
-			if(mouseUp == recieved) {
+			if(mouseUp === recieved) {
 				el.classList.remove('over')
 				yield * dropped()
 			}
@@ -150,45 +144,50 @@ const makeDraggable = gimgen(function*(el, dropTargets) {
 
 	function * dropped() {
 		el.classList.add('dropped')
-		yield * notDragging()
+		yield * notDragging(() => el.classList.remove('dropped') )
 	}
 
-	// let isDragging = false
-	//
-	// runGimgen(function*() {
-	// 	while(true) {
-	// 		isDragging = false
-	// 		yield mouseDown
-	// 		isDragging = true
-	// 		el.style.osition = 'fixed'
-	// 		el.style.zIndex = 100
-	//
-	// 		while(mouseMoved === (yield anySignal(mouseMoved, mouseUp))) {
-	// 			const ev = mouseMoved.getLastEvent()
-	// 			console.log(ev.clientX, ev.clientY)
-	// 			Object.assign(el.style, {left: `${ev.clientX}px`, top: `${ev.clientY}px`})
-	// 		}
-	// 	}
-	// })
-	// runGimgen(function*() {
-	// 	while(true) {
-	// 		const enter = yield anySignal(...targetsMouseEnters)
-	// 		if(!isDragging) continue
-	// 		const ev = enter.getLastEvent()
-	// 		if(ev.target.matches('.drop-target'))
-	// 			ev.target.classList.add('targetted')
-	// 	}
-	// })
-	// runGimgen(function*() {
-	// 	while(true) {
-	// 		const enter = yield anySignal(...targetsMouseLeaves)
-	// 		if(!isDragging) continue
-	// 		const ev = enter.getLastEvent()
-	// 		if(ev.target.matches('.drop-target'))
-	// 			ev.target.classList.remove('targetted')
-	// 	}
-	// })
-})
+
+	/********************
+	Drop Target State Machine:
+		Idle -> Targetted
+		Targetted -> Idle, Selected
+		Selected -> Targetted
+	********************/
+
+	const startIdle = gimgen(idle)
+	for(let t of dropTargets)
+		startIdle(t)
+
+	function * idle(target) {
+		while(true) {
+			yield mouseMoved
+			if(isOverlapping(el.getBoundingClientRect(), target.getBoundingClientRect()))
+				yield * targetted(target) }
+	}
+
+	function * targetted(target) {
+		target.classList.add('targetted')
+		while(true) {
+			const recieved = yield anySignal(mouseMoved, mouseUp)
+			if(!isOverlapping(el.getBoundingClientRect(), target.getBoundingClientRect())) {
+				target.classList.remove('targetted')
+				yield * idle(target)
+			}
+			if(mouseUp === recieved) {
+				target.classList.remove('targetted')
+				yield * selected(target)
+			}
+		}
+	}
+
+	function * selected(target) {
+		target.classList.add('selected')
+		while(true)
+			yield neverSignal
+	}
+
+}
 
 makeDraggable(document.querySelector('.draggable'), Array.from(document.querySelectorAll('.drop-target')))
 </script>
