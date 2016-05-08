@@ -1,0 +1,198 @@
+<link href="./common.css" rel="stylesheet" />
+<style>
+@keyframes wiggle {
+	0% { transform: rotateZ(0deg); }
+	25% { transform: rotateZ(10deg); }
+	50% { transform: rotateZ(0deg); }
+	75% { transform: rotateZ(-10deg); }
+}
+.draggable {
+	background-color: #002366;
+	width: 100px;
+	height: 100px;
+	position: absolute;
+	left: 0;
+	transition: background-color 1500ms;
+}
+.draggable.over {
+	background-color: orange;
+}
+.draggable.dropped {
+	background-color: #CE32ED;
+}
+.drop-target {
+	width: 200px;
+	height: 200px;
+	position: absolute;
+	opacity: .5;
+}
+.drop-target.targetted {
+	animation: wiggle .6s linear 0s infinite;
+}
+.drop-target.selected {
+	border: 8px solid black;
+}
+.drop-target.one {
+	background-color: red;
+	left: 300px;
+}
+.drop-target.two {
+	background-color: green;
+	left: 450px;
+	top: 150px;
+}
+.draggable, .drop-target {
+	border: 3px solid #666;
+	box-sizing: border-box;
+}
+main p:nth-of-type(1) {
+	margin-top: 350px;
+}
+</style>
+<script src="../dist/gimgen.js"></script>
+
+<main>
+	<div class="draggable"></div>
+	<div class="drop-target one"></div>
+	<div class="drop-target two"></div>
+	<p>
+		The blue square supports drag and drop. Try dragging it over and dropping it into one of the squares.
+	</p>
+	<p>
+		This demonstrates several simultaneous state machines using generators and recursion to transition from state to state.
+		The draggable object gets its own draggable-object state machine. Each of the droppable areas gets their own instance of the
+		drop-target state machine.
+	</p>
+	<pre><code class="language-js" id="code-display"></code></pre>
+</main>
+
+<script id="code">
+const {gimgen, runGimgen, domEventToSignal, anySignal, createSignalFactory} = window.gimgen
+
+const makeDraggable = (el, dropTargets) => {
+	const targetMouseDown = domEventToSignal(el, 'mousedown')
+	const mouseMoved = domEventToSignal(document, 'mousemove')
+	const mouseUp = domEventToSignal(document, 'mouseup')
+	const targetsMouseEnters = dropTargets.map(t => domEventToSignal(t, 'mouseenter'))
+	const targetsMouseLeaves = dropTargets.map(t => domEventToSignal(t, 'mouseleave'))
+
+	//Helper functiosn
+	const isOrdered = (v1, v2, v3)  => v1 <= v2 && v2 <= v3
+	const isOverlapping = (r, t) =>
+		(isOrdered(t.left, r.left, t.right) || isOrdered(t.left, r.right, t.right)) &&
+		(isOrdered(t.top, r.top, t.bottom) || isOrdered(t.top, r.bottom, t.bottom))
+	const overlappedTargets = () => {
+		const elRect = el.getBoundingClientRect()
+		return dropTargets.filter(target => isOverlapping(elRect, target.getBoundingClientRect()) )
+	}
+	const moveTarget = ({clientX, clientY}) =>
+		Object.assign(el.style, {left: `${clientX}px`, top: `${clientY}px`})
+	const targetToMouseMove  = sig =>
+		(mouseMoved === sig) && moveTarget(mouseMoved.getLastEvent())
+	const fixPosition = () => Object.assign(el.style, {position: 'fixed', zIndex: 100 })
+	const neverSignal = createSignalFactory('neverSignal', () => new Promise(() => {}))() //neverSignal signal
+
+	/*************
+	Draggable State Machine:
+		NotDragging -> Dragging, DraggingOver
+		Dragging -> NotDragging, DraggingOver
+		DraggingOver -> Dragging, Dropped
+		Dropped -> NotDragging
+	**************/
+	runGimgen(notDragging)
+
+	function * notDragging(preTransition) {
+		yield targetMouseDown
+		const ev = targetMouseDown.getLastEvent()
+		fixPosition()
+		moveTarget(ev)
+		preTransition && preTransition()
+		if(overlappedTargets().length)
+			yield * draggingOver()
+		else
+			yield * dragging()
+	}
+
+	function * dragging() {
+		fixPosition()
+		while(true) {
+			const recieved = yield anySignal(mouseMoved, mouseUp)
+			if(mouseUp == recieved)
+				yield * notDragging()
+			targetToMouseMove(recieved)
+			if(overlappedTargets().length)
+				yield * draggingOver()
+		}
+	}
+
+	function * draggingOver() {
+		fixPosition()
+		el.classList.add('over')
+		while(true) {
+			const recieved = yield anySignal(mouseMoved, mouseUp)
+			if(mouseUp === recieved) {
+				el.classList.remove('over')
+				yield * dropped()
+			}
+			targetToMouseMove(recieved)
+			if(!overlappedTargets().length) {
+				el.classList.remove('over')
+				yield * dragging()
+			}
+		}
+	}
+
+	function * dropped() {
+		el.classList.add('dropped')
+		yield * notDragging(() => el.classList.remove('dropped') )
+	}
+
+
+	/********************
+	Drop Target State Machine:
+		Idle -> Targetted
+		Targetted -> Idle, Selected
+		Selected -> Targetted
+	********************/
+
+	const startIdle = gimgen(idle)
+	for(let t of dropTargets)
+		startIdle(t)
+
+	function * idle(target) {
+		while(true) {
+			yield mouseMoved
+			if(isOverlapping(el.getBoundingClientRect(), target.getBoundingClientRect()))
+				yield * targetted(target) }
+	}
+
+	function * targetted(target) {
+		target.classList.add('targetted')
+		while(true) {
+			const recieved = yield anySignal(mouseMoved, mouseUp)
+			if(!isOverlapping(el.getBoundingClientRect(), target.getBoundingClientRect())) {
+				target.classList.remove('targetted')
+				yield * idle(target)
+			}
+			if(mouseUp === recieved) {
+				target.classList.remove('targetted')
+				yield * selected(target)
+			}
+		}
+	}
+
+	function * selected(target) {
+		target.classList.add('selected')
+		while(true)
+			yield neverSignal
+	}
+
+}
+
+makeDraggable(document.querySelector('.draggable'), Array.from(document.querySelectorAll('.drop-target')))
+</script>
+<script>
+document.querySelector('#code-display').textContent = document.querySelector('#code').textContent;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/prism.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.4.1/themes/prism.min.css" rel="stylesheet" />
