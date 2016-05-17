@@ -1,7 +1,7 @@
 import sinon from 'sinon'
 import {assert} from 'chai'
 import SyncPromise from 'sync-promise'
-import { gimgen, manualSignal, invokableGimgen } from '../src/gimgen'
+import { gimgen, runGimgen, manualSignal, invokableGimgen, promiseToSignal } from '../src/gimgen'
 import { once, debounce, throttle, after } from '../src/gimgen-implementations'
 
 let clock, _originalPromise = null
@@ -188,6 +188,55 @@ describe(`after 2`, () => {
         beforeEach(() => fn())
         it(`will call twice`, () => assert.equal(callback.args.length, 2))
       })
+    })
+  })
+})
+
+const listenableFunc = () => {
+  const listeners = new Set()
+  const listenable = function() {
+    for(let fn of listeners)
+      fn.apply(this, arguments)
+  }
+  listenable.on = fn => listeners.add(fn)
+  return listenable
+}
+
+const createDeferred = () => {
+  const resolve = listenableFunc()
+  const reject = listenableFunc()
+  const p = new Promise((res, rej) => {
+    resolve.on(res)
+    reject.on(rej)
+  })
+  return { reject, resolve, promise: () => p }
+}
+
+describe(`errors within gimgen`, () => {
+  let def, recievedError
+  beforeEach(() => {
+    def = createDeferred()
+    runGimgen(function * () {
+      try {
+        yield promiseToSignal(def.promise())
+      } catch(e) {
+        console.log('err', e)
+        recievedError = e
+      }
+    })
+  })
+
+  describe(`resolve promise`, () => {
+    beforeEach(() => def.resolve("yay") )
+    it(`has no error`, () => assert(!recievedError))
+  })
+
+  describe(`reject promise`, () => {
+    beforeEach(() => {
+      def.reject("boo")
+    } )
+    it(`recieves error`, () => {
+      assert(recievedError)
     })
   })
 })
