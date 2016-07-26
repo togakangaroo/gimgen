@@ -117,14 +117,14 @@ export const controlSignal = createSignalFactory('controlSignal', {
 
 const runPromises = (iterator, valueToYield) => {
   const current = iterator.next(valueToYield)
-  if(current.done) return
-  current.value.createPromise()
-    .then( promiseParam => runPromises(iterator, promiseParam) )
-    .catch( err => iterator.throw(err) )
+  return current.done ?
+    Promise.resolve() :
+    current.value.createPromise()
+      .then( promiseParam => runPromises(iterator, promiseParam), err => iterator.throw(err) )
 }
 export const gimgen = (generator) => (...generatorArgs) => {
     const iterator = generator(...generatorArgs);
-    runPromises(iterator)
+    return runPromises(iterator)
 }
 
 export const runGimgen = (generator) => gimgen(generator)()
