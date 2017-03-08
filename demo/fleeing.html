@@ -1,6 +1,6 @@
 <section>
 		<p>
-				The ball below will try to flee as you hover your mouse over it. Try to keep your mouse over it as long as you can!
+				The ball below will try to flee as you hover your mouse over it. Try to keep your mouse over it as long as you can! If you loose the ball, you'll have a fraction of a second to get your mouse back over it.
 		</p>
 		<figure>
 				<span class="score">0</span>
@@ -84,23 +84,28 @@
  runGimgen(function * trackScore() {
 		const pointerEnter = domEventToSignal(target, 'pointerenter')
 		const pointerLeave = domEventToSignal(target, 'pointerleave')
+		const loseTargetForTooLong = timeoutSignal(300)
 		const scoreEl = document.querySelector('.score')
 		let maxScore = 0
 		const timestamp = () => new Date().getTime()
 		const setScore = score => scoreEl.textContent = score
 		let currentScoreStart = null
+		const recordNewScore = () => {
+				if(!Number.isInteger(currentScoreStart))
+						return;
+				const newScore = timestamp() - currentScoreStart
+				currentScoreStart = null
+				if(newScore > maxScore)
+						queuedActions = [...queuedActions, setScore.bind(null, maxScore = newScore)]
+		}
 		while(true) {
 				const next = yield anySignal(pointerEnter, pointerLeave)
-				if(pointerEnter == next) {
+				if(pointerEnter === next)
 						currentScoreStart = timestamp()
-				} else {
-						if(!Number.isInteger(currentScoreStart))
-								continue;
-				    const newScore = timestamp() - currentScoreStart
-						currentScoreStart = null
-						if(newScore > maxScore)
-								queuedActions = [...queuedActions, setScore.bind(null, maxScore = newScore)]
-				}
+				if(pointerLeave === next)
+						//they now have some time to re-capture it
+						if(loseTargetForTooLong === (yield anySignal(pointerEnter, loseTargetForTooLong)))
+								recordNewScore()
 		}
  })
  runGimgen(function * redraw() {
