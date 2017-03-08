@@ -49,7 +49,7 @@
 				controlSignal, createSignalFactory } = window.gimgen
 
  const radius = target.r.animVal.value
- const speed = 2
+ const speed = 0.8
  let position = { x: target.cx.animVal.value, y: target.cy.animVal.value}
  const add = (val, delta) =>
 		 val + delta > (100+radius) ? -1*radius
@@ -61,23 +61,24 @@
 		 target.cy.baseVal.value = position.y
  }
  let queuedActions = []
- const tick = timeoutSignal(1000/25)
+ const tick = timeoutSignal(1000/45)
 
  /* There are three coroutines here.
 		* One to decide how the box should move that reacts to tick and pointer events
 		* One to track the score by listening to pointer events
 		* One to redraw the game on a proper loop
- */ 
+ */
 
  runGimgen(function * moveBox() {
 		const pointerOver = domEventToSignal(target, 'pointerover')
-		let direction = 0
+		const randomDirection = () => Math.random() * 2 * Math.PI
+		let direction = randomDirection()
 		while(true) {
 				const next = yield anySignal(tick, pointerOver)
-				if(tick == next) 
+				if(tick == next)
 						queuedActions = [...queuedActions, move.bind(null, speed * Math.cos(direction), speed * Math.sin(direction))]
 				if(pointerOver == next)
-						direction = Math.random()
+						direction = randomDirection()
 		}
  })
  runGimgen(function * trackScore() {
