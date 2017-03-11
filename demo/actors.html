@@ -44,7 +44,7 @@
 <script>
 const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
 		controlSignal, createSignalFactory, promiseToSignal } = window.gimgen
-const { pow, sqrt, random } = Math
+const { pow, sqrt, random, PI, sin, cos } = Math
 const { width, height }	= document.querySelector('svg').viewBox.baseVal
 
 const tick = timeoutSignal(1000/2)
@@ -55,8 +55,6 @@ const rand = (max, min = 0) => random() * (max - min) + min
 
 let id_counter = 0
 const id = () => id_counter += 1
-
-let renderers = []
 
 const radius = 3
 const overlaps = (s1, s2) =>
@@ -83,6 +81,7 @@ const placeCircle = (id, remainingAttempts = 300) => {
 const startDucky = gimgen(function * () {
 	const name = `#${id()}`
 	placeCircle(name)
+	let direction = 2 * PI * random()
 	while(true) {
 		yield tick
 	}
@@ -92,10 +91,10 @@ range(50).forEach(() => startDucky())
 
 runGimgen(function * renderLoop(){
   const svg = d3.select('svg')
+	const circles = svg.selectAll('circle')
 	while(true) {
 		yield renderTick
-		svg
-			.selectAll('circle')
+		circles
 			.data([...shapes.values()])
 			.enter()
 			.append('circle')
@@ -104,10 +103,6 @@ runGimgen(function * renderLoop(){
 			.attr('r',  a => a.r)
 			.attr('fill', '#AA4444')
 			.exit()
-
-			/* renderers.forEach(fn => fn())
-				 renderers = []
-				 for(let s of shapes.values())*/
 	}
 })
 </script>
