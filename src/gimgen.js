@@ -115,13 +115,20 @@ export const controlSignal = createSignalFactory('controlSignal', {
   createPromise: ({state}) => state.createPromise()
 })
 
-const runPromises = (iterator, valueToYield) => {
-  const current = iterator.next(valueToYield)
-  return current.done ?
-    Promise.resolve() :
-    current.value.createPromise()
-      .then( promiseParam => runPromises(iterator, promiseParam), err => iterator.throw(err) )
+const run = fn => () => fn()
+const asyncRecursive = fn => (...args) => {
+	const recurse = (...nextArgs) =>
+				setTimeout(run(fn.bind(null, recurse, ...nextArgs)))
+	fn(recurse, ...args)
 }
+
+const runPromises = asyncRecursive((recurse, iterator, valueToYield) => {
+	const current = iterator.next(valueToYield)
+	return current.done ?
+		Promise.resolve() :
+		current.value.createPromise()
+		.then( promiseParam => recurse(iterator, promiseParam), err => iterator.throw(err) )
+})
 export const gimgen = (generator) => (...generatorArgs) => {
     const iterator = generator(...generatorArgs);
     return runPromises(iterator)
