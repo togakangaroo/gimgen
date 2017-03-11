@@ -58,23 +58,27 @@ const id = () => id_counter += 1
 
 let renderers = []
 
-const radius = 5
+const radius = 3
 const overlaps = (s1, s2) =>
 		(s1.r + s2.r) >= sqrt(pow(s1.cx - s2.cx, 2) + pow(s1.cy - s2.cy, 2))
 const circleShape = (id, r, [cx, cy]) => ({id, r, cx, cy })
 let space = {}
 let shapes = new Map()
+const anyShapeOverlaps = (shape) => {
+		for(let s of shapes.values())
+				if(overlaps(shape, s))
+						return true
+		return false
+}
 const placeCircle = (id, remainingAttempts = 300) => {
 		if(remainingAttempts <= 0)
 				return console.error(`could not place circle ${id}`)
 		const location = [rand(width-radius, radius), rand(height-radius, radius)]
 		const newShape = circleShape(id, radius, location)
-		for(let shape of shapes.values())
-				if(overlaps(shape, newShape))
-						return placeCircle(id, remainingAttempts-1)
+		if(anyShapeOverlaps(newShape))
+				return placeCircle(id, remainingAttempts-1)
 		shapes.set(id, newShape)
 }
-
 
 const startDucky = gimgen(function * () {
 	const name = `#${id()}`
