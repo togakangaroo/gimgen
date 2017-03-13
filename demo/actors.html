@@ -60,7 +60,7 @@ const id = () => id_counter += 1
 const radius = 3
 const overlaps = (s1, s2) =>
     (s1.r + s2.r) >= sqrt(pow(s1.cx - s2.cx, 2) + pow(s1.cy - s2.cy, 2))
-const circleShape = (id, r, [cx, cy]) => ({id, r, cx, cy })
+const circleShape = (id, r, [cx, cy], speed, direction) => ({id, r, cx, cy, speed, direction })
 let space = {}
 let shapes = new Map()
 const anyShapeOverlaps = (shape) => {
@@ -71,18 +71,20 @@ const anyShapeOverlaps = (shape) => {
 }
 const placeCircle = (id, remainingAttempts = 300) => {
     if(remainingAttempts <= 0)
-        return console.error(`could not place circle ${id}`)
+        return null
     const location = [rand(width-radius, radius), rand(height-radius, radius)]
-    const newShape = circleShape(id, radius, location)
+    const newShape = circleShape(id, radius, location, 1, 2*PI*random())
     if(anyShapeOverlaps(newShape))
         return placeCircle(id, remainingAttempts-1)
-    shapes.set(id, newShape)
+    return newShape
 }
 
 const startDucky = gimgen(function * () {
   const name = `#${id()}`
-  placeCircle(name)
-  let direction = 2 * PI * random()
+  const shape = placeCircle(name)
+  if(!shape)
+    return console.error(`could not place circle ${id}`)
+  shapes.set(name, shape)
   while(true) {
     yield tick
   }
@@ -90,17 +92,18 @@ const startDucky = gimgen(function * () {
 
 range(50).forEach(() => startDucky())
 
+
 runGimgen(function * renderLoop(){
   const { h, diff, patch, create } = window.virtualDom
-	const renderActors = function * (shapes) {
-		for(let {cx, cy, r} of shapes)
-				yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333'}, namespace: "http://www.w3.org/2000/svg"})
+  const renderActors = function * (shapes) {
+    for(let {cx, cy, r} of shapes)
+        yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333'}, namespace: "http://www.w3.org/2000/svg"})
   }
 
-	const render = ({ shapes }) =>
-			h('g', { namespace: "http://www.w3.org/2000/svg" }, [
-					...renderActors(shapes.values())
-			])
+  const render = ({ shapes }) =>
+    h('g', { namespace: "http://www.w3.org/2000/svg" }, [
+        ...renderActors(shapes.values())
+    ])
 
   let state = { shapes }
   let tree = render(state)
