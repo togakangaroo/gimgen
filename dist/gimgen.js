@@ -110,6 +110,14 @@
     }, {});
   };
 
+  var defer = function (fn) {
+    return setTimeout(fn);
+  };
+  // gm - annyingly, necessary for tests to work
+  var _changeDefer = exports._changeDefer = function (fn) {
+    return defer = fn;
+  };
+
   // Returns function that when invoked will return a representation of a signal.
   // A signal is anything with a `createPromise` method
   // See below for usages.
@@ -291,7 +299,7 @@
           nextArgs[_key7] = arguments[_key7];
         }
 
-        return setTimeout(run(fn.bind.apply(fn, [null, recurse].concat(nextArgs))));
+        return defer(run(fn.bind.apply(fn, [null, recurse].concat(nextArgs))));
       };
       fn.apply(undefined, [recurse].concat(args));
     };
