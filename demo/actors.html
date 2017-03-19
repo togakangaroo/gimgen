@@ -92,6 +92,8 @@ const startDucky = gimgen(function * () {
 
 range(50).forEach(() => startDucky())
 
+runGimgen(function * calcForceTransfer() {
+})
 
 runGimgen(function * renderLoop(){
   const { h, diff, patch, create } = window.virtualDom
