@@ -1,6 +1,6 @@
 import sinon from 'sinon'
-import {assert} from 'chai'
-import { gimgen, runGimgen, manualSignal, invokableGimgen, promiseToSignal } from '../src/gimgen'
+import { assert } from 'chai'
+import { gimgen, runGimgen, manualSignal, invokableGimgen, promiseToSignal, _changeDefer } from '../src/gimgen'
 import { once, debounce, throttle, after } from '../src/gimgen-implementations'
 
 const originalSetTimeout = setTimeout
@@ -11,9 +11,11 @@ const deferBeforeEach = fn => beforeEach(deferFn(fn))
 let clock
 beforeEach(() => {
   clock = sinon.useFakeTimers()
+  _changeDefer(fn => fn())
 } )
 afterEach(() => {
   clock.restore()
+  _changeDefer(setTimeout)
 })
 
 describe(`gimgen a generator`, () => {
@@ -231,15 +233,14 @@ describe(`errors within gimgen`, () => {
   describe(`resolve promise`, () => {
     beforeEach(() => {
       def.resolve("yay")
-      return coroutineEnd
     } )
     it(`has no error`, () => assert(!recievedError))
   })
 
   describe(`reject promise`, () => {
-    beforeEach(() => {
+    beforeEach((done) => {
       def.reject("boo")
-      return coroutineEnd
+      originalSetTimeout(done)
     } )
     it(`recieves error`, () => {
       assert(recievedError)

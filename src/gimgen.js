@@ -8,6 +8,10 @@ const rebindFuncs = (entries, getFirstParam) =>
   entries.map(([key, val]) => [key, !isFunction(val) ? val : (...args) => val(getFirstParam(), ...args)])
         .reduce((obj, [key, val]) => (obj[key] = val, obj), {})
 
+let defer = (fn) => setTimeout(fn)
+// gm - annyingly, necessary for tests to work
+export const _changeDefer = fn => defer = fn
+
 // Returns function that when invoked will return a representation of a signal.
 // A signal is anything with a `createPromise` method
 // See below for usages.
@@ -118,7 +122,7 @@ export const controlSignal = createSignalFactory('controlSignal', {
 const run = fn => () => fn()
 const asyncRecursive = fn => (...args) => {
 	const recurse = (...nextArgs) =>
-				setTimeout(run(fn.bind(null, recurse, ...nextArgs)))
+				defer(run(fn.bind(null, recurse, ...nextArgs)))
 	fn(recurse, ...args)
 }
 
