@@ -82,18 +82,18 @@
     return Object.keys(obj).map(function (k) {
       return [k, obj[k]];
     }).filter(function (_ref) {
-      var _ref2 = _slicedToArray(_ref, 1);
+      var _ref2 = _slicedToArray(_ref, 1),
+          key = _ref2[0];
 
-      var key = _ref2[0];
       return !contains(propsToOmit, key);
     });
   };
   var rebindFuncs = function (entries, getFirstParam) {
     return entries.map(function (_ref3) {
-      var _ref4 = _slicedToArray(_ref3, 2);
+      var _ref4 = _slicedToArray(_ref3, 2),
+          key = _ref4[0],
+          val = _ref4[1];
 
-      var key = _ref4[0];
-      var val = _ref4[1];
       return [key, !isFunction(val) ? val : function () {
         for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
           args[_key2] = arguments[_key2];
@@ -102,12 +102,20 @@
         return val.apply(undefined, [getFirstParam()].concat(args));
       }];
     }).reduce(function (obj, _ref5) {
-      var _ref6 = _slicedToArray(_ref5, 2);
+      var _ref6 = _slicedToArray(_ref5, 2),
+          key = _ref6[0],
+          val = _ref6[1];
 
-      var key = _ref6[0];
-      var val = _ref6[1];
       return obj[key] = val, obj;
     }, {});
+  };
+
+  var defer = function (fn) {
+    return setTimeout(fn);
+  };
+  // gm - annyingly, necessary for tests to work
+  var _changeDefer = exports._changeDefer = function (fn) {
+    return defer = fn;
   };
 
   // Returns function that when invoked will return a representation of a signal.
@@ -116,9 +124,9 @@
   var createSignalFactory = exports.createSignalFactory = function (name, propsOrCreatePromise) {
     if (isFunction(propsOrCreatePromise)) return createSignalFactory(name, { createPromise: propsOrCreatePromise });
 
-    var createPromise = propsOrCreatePromise.createPromise;
-    var _propsOrCreatePromise = propsOrCreatePromise.getInitialState;
-    var getInitialState = _propsOrCreatePromise === undefined ? null : _propsOrCreatePromise;
+    var createPromise = propsOrCreatePromise.createPromise,
+        _propsOrCreatePromise = propsOrCreatePromise.getInitialState,
+        getInitialState = _propsOrCreatePromise === undefined ? null : _propsOrCreatePromise;
 
     var templateEntries = omitEntries(propsOrCreatePromise, 'createPromise', 'getInitialState');
     var createInitial = isFunction(getInitialState) ? getInitialState : function () {
@@ -196,8 +204,8 @@
       return [];
     },
     createPromise: function (_ref9) {
-      var toNotify = _ref9.state;
-      var setState = _ref9.setState;
+      var toNotify = _ref9.state,
+          setState = _ref9.setState;
       return new Promise(function (resolve) {
         return setState([resolve].concat(_toConsumableArray(toNotify)));
       });
@@ -207,8 +215,8 @@
         args[_key4 - 1] = arguments[_key4];
       }
 
-      var toNotify = _ref10.state;
-      var setState = _ref10.setState;
+      var toNotify = _ref10.state,
+          setState = _ref10.setState;
 
       if (args.length > 1) setState([]);
       toNotify.forEach(function (fn) {
@@ -275,19 +283,40 @@
     }
   });
 
-  var runPromises = function (getNext, valueToYield) {
-    var current = getNext(valueToYield);
-    if (current.done) return;
-    current.value.createPromise().then(function (promiseParam) {
-      runPromises(getNext, promiseParam);
-    });
+  var run = function (fn) {
+    return function () {
+      return fn();
+    };
   };
+  var asyncRecursive = function (fn) {
+    return function () {
+      for (var _len6 = arguments.length, args = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        args[_key6] = arguments[_key6];
+      }
+
+      var recurse = function () {
+        for (var _len7 = arguments.length, nextArgs = Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+          nextArgs[_key7] = arguments[_key7];
+        }
+
+        return defer(run(fn.bind.apply(fn, [null, recurse].concat(nextArgs))));
+      };
+      fn.apply(undefined, [recurse].concat(args));
+    };
+  };
+
+  var runPromises = asyncRecursive(function (recurse, iterator, valueToYield) {
+    var current = iterator.next(valueToYield);
+    return current.done ? Promise.resolve() : current.value.createPromise().then(function (promiseParam) {
+      return recurse(iterator, promiseParam);
+    }, function (err) {
+      return iterator.throw(err);
+    });
+  });
   var gimgen = exports.gimgen = function (generator) {
     return function () {
       var iterator = generator.apply(undefined, arguments);
-      runPromises(function () {
-        return iterator.next.apply(iterator, arguments);
-      });
+      return runPromises(iterator);
     };
   };
 

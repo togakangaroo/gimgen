@@ -1,0 +1,108 @@
+<section>
+		<p>
+				Actors, Baby!
+		</p>
+		<figure>
+				<span class="score">0</span>
+				<figcaption>Max Captured</figcaption>
+		</figure>
+</section>
+<style>
+ body {
+		 padding: 0;
+		 margin: 0;
+		 min-height: 100vh;
+		 display: flex;
+		 flex-direction: column;
+ }
+ svg {
+		 flex: 1;
+		 background-color: #AABBCC;
+		 border: 2px solid black;
+		 height: 100%;
+		 align-self: center;
+		 margin-bottom: 2em;
+	}
+ section {
+		 font-size: 1.3em;
+		 padding: 1em;
+		 display: flex;
+ }
+ p {
+		 flex: 1;
+ }
+ figure {
+		 display: flex;
+		 flex-direction: column;
+ }
+</style>
+<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+</svg>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.7.2/d3.min.js"></script>
+<script src="../dist/gimgen.js"></script>
+<script>
+const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
+		controlSignal, createSignalFactory, promiseToSignal } = window.gimgen
+const { pow, sqrt, random, PI, sin, cos } = Math
+const { width, height }	= document.querySelector('svg').viewBox.baseVal
+
+const tick = timeoutSignal(1000/2)
+const renderTick = timeoutSignal(1000/5)
+
+const range = (max, min = 0) => new Array(max - min).fill(0).map((_, i) => min + i)
+const rand = (max, min = 0) => random() * (max - min) + min
+
+let id_counter = 0
+const id = () => id_counter += 1
+
+const radius = 3
+const overlaps = (s1, s2) =>
+		(s1.r + s2.r) >= sqrt(pow(s1.cx - s2.cx, 2) + pow(s1.cy - s2.cy, 2))
+const circleShape = (id, r, [cx, cy]) => ({id, r, cx, cy })
+let space = {}
+let shapes = new Map()
+const anyShapeOverlaps = (shape) => {
+		for(let s of shapes.values())
+				if(overlaps(shape, s))
+						return true
+		return false
+}
+const placeCircle = (id, remainingAttempts = 300) => {
+		if(remainingAttempts <= 0)
+				return console.error(`could not place circle ${id}`)
+		const location = [rand(width-radius, radius), rand(height-radius, radius)]
+		const newShape = circleShape(id, radius, location)
+		if(anyShapeOverlaps(newShape))
+				return placeCircle(id, remainingAttempts-1)
+		shapes.set(id, newShape)
+}
+
+const startDucky = gimgen(function * () {
+	const name = `#${id()}`
+	placeCircle(name)
+	let direction = 2 * PI * random()
+	while(true) {
+		yield tick
+	}
+})
+
+range(50).forEach(() => startDucky())
+
+runGimgen(function * renderLoop(){
+  const svg = d3.select('svg')
+	const circles = svg.selectAll('circle')
+	while(true) {
+		yield renderTick
+			/* circles
+				 .data([...shapes.values()])
+				 .enter()
+				 .append('circle')
+				 .attr('cx', a => a.cx)
+				 .attr('cy', a => a.cy)
+				 .attr('r',  a => a.r)
+				 .attr('fill', '#AA4444')
+				 .exit()*/
+	}
+})
+</script>
