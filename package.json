@@ -1,6 +1,6 @@
 {
   "name": "gimgen",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "library using javascript generators to control program flow and synchronize signals",
   "main": "src/gimgen.js",
   "scripts": {
@@ -25,7 +25,6 @@
     "eslint-plugin-sinon": "^0.1.0",
     "mocha": "^2.4.5",
     "mock-browser": "^0.92.10",
-    "sinon": "^1.17.3",
-    "sync-promise": "^1.0.1"
+    "sinon": "^1.17.3"
   }
 }
