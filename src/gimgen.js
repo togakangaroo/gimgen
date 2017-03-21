@@ -80,9 +80,9 @@ export const manualSignal = createSignalFactory('manualSignal', {
 })
 
 export const firstResolvedPromise = (promises) =>
-  new Promise(resolve =>
-    promises.map(promise => promise.then(() => resolve({promise}) )
-  ))
+  new Promise(resolve => promises.map(promise => promise.then((result) => {
+    resolve({promise, result}
+  )} )))
 
 // Signal that resolves when any of the signals passed in resolve
 // Usage:

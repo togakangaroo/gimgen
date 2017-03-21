@@ -42,7 +42,7 @@
 <script src="https://rawgit.com/Matt-Esch/virtual-dom/master/dist/virtual-dom.js"></script>
 <script src="../dist/gimgen.js"></script>
 <script>
-const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
+const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, firstResolvedPromise,
 				controlSignal, createSignalFactory, promiseToSignal, manualSignal } = window.gimgen
 const { pow, sqrt, random, PI } = Math
 const tau = 2*PI
@@ -56,6 +56,16 @@ const renderTick = timeoutSignal(1000/5)
 
 const range = (max, min = 0) => new Array(max - min).fill(0).map((_, i) => min + i)
 const rand = (max, min = 0) => random() * (max - min) + min
+
+
+const wrappedAnySignal = createSignalFactory('wrappedAnySignal', (_, ...signals) => {
+  const signalPromise = signals.map(signal => ({signal, promise: signal.createPromise()}) )
+  return firstResolvedPromise(signalPromise.map(x => x.promise))
+    .then(({promise:resolvedPromise, result}) => {
+			const signal = signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
+			return {signal, result}
+		})
+})
 
 let id_counter = 0
 const id = () => id_counter += 1
@@ -102,6 +112,7 @@ const startDucky = gimgen(function * () {
 				shape.cy += speed*sin(direction)
 			  break;
 			case forceApplied:
+			  direction = forceApplied.last.newDirection
 				break;
 		}
 	}
@@ -109,7 +120,16 @@ const startDucky = gimgen(function * () {
 
 range(50).forEach(() => startDucky())
 
+var manSig = manualSignal()
+
 runGimgen(function * calcForceTransfer() {
+	while(true) {
+		const {signal, result} = yield wrappedAnySignal(tick, manSig)
+		if(signal != tick) {
+			console.log('r', signal, result)
+			debugger;
+		}
+	}
 })
 
 runGimgen(function * renderLoop(){

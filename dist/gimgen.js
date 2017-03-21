@@ -228,8 +228,8 @@
   var firstResolvedPromise = exports.firstResolvedPromise = function (promises) {
     return new Promise(function (resolve) {
       return promises.map(function (promise) {
-        return promise.then(function () {
-          return resolve({ promise: promise });
+        return promise.then(function (result) {
+          resolve({ promise: promise, result: result });
         });
       });
     });
