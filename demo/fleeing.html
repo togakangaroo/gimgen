@@ -1,43 +1,43 @@
 <section>
-		<p>
-				The ball below will try to flee as you hover your mouse over it. Try to keep your mouse over it as long as you can! If you loose the ball, you'll have a fraction of a second to get your mouse back over it.
-		</p>
-		<figure>
-				<span class="score">0</span>
-				<figcaption>Max Captured</figcaption>
-		</figure>
+    <p>
+        The ball below will try to flee as you hover your mouse over it. Try to keep your mouse over it as long as you can! If you loose the ball, you'll have a fraction of a second to get your mouse back over it.
+    </p>
+    <figure>
+        <span class="score">0</span>
+        <figcaption>Max Captured</figcaption>
+    </figure>
 </section>
 <style>
  body {
-		 padding: 0;
-		 margin: 0;
-		 min-height: 100vh;
-		 display: flex;
-		 flex-direction: column;
+     padding: 0;
+     margin: 0;
+     min-height: 100vh;
+     display: flex;
+     flex-direction: column;
  }
  svg {
-		 flex: 1;
-		 background-color: #AABBCC;
-		 border: 2px solid black;
-		 height: 100%;
-		 align-self: center;
-		 margin-bottom: 2em;
-	}
+     flex: 1;
+     background-color: #AABBCC;
+     border: 2px solid black;
+     height: 100%;
+     align-self: center;
+     margin-bottom: 2em;
+  }
  section {
-		 font-size: 1.3em;
-		 padding: 1em;
-		 display: flex;
+     font-size: 1.3em;
+     padding: 1em;
+     display: flex;
  }
  p {
-		 flex: 1;
+     flex: 1;
  }
  figure {
-		 display: flex;
-		 flex-direction: column;
+     display: flex;
+     flex-direction: column;
  }
 </style>
 <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-		<circle r="5" fill="#AA2222" cx="50" cy="50"></circle>
+    <circle r="5" fill="#AA2222" cx="50" cy="50"></circle>
 </svg>
 
 <script src="../dist/gimgen.js"></script>
@@ -46,79 +46,79 @@
  const target = document.querySelector('circle')
 
  const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal,
-				controlSignal, createSignalFactory } = window.gimgen
+        controlSignal, createSignalFactory } = window.gimgen
 
  const radius = target.r.animVal.value
  const speed = 0.8
  let position = { x: target.cx.animVal.value, y: target.cy.animVal.value}
  const add = (val, delta) =>
-		 val + delta > (100+radius) ? -1*radius
-		:val + delta < -1*radius		? 100+radius
-																: val+delta
+     val + delta > (100+radius) ? -1*radius
+    :val + delta < -1*radius    ? 100+radius
+                                : val+delta
  const move = (rightBy, downBy) => {
-		 position = {x: add(position.x, rightBy), y: add(position.y, downBy)}
-		 target.cx.baseVal.value = position.x
-		 target.cy.baseVal.value = position.y
+     position = {x: add(position.x, rightBy), y: add(position.y, downBy)}
+     target.cx.baseVal.value = position.x
+     target.cy.baseVal.value = position.y
  }
  let queuedActions = []
  const tick = timeoutSignal(1000/45)
 
  /* There are three coroutines here.
-		* One to decide how the box should move that reacts to tick and pointer events
-		* One to track the score by listening to pointer events
-		* One to redraw the game on a proper loop
+    * One to decide how the box should move that reacts to tick and pointer events
+    * One to track the score by listening to pointer events
+    * One to redraw the game on a proper loop
  */
 
  runGimgen(function * moveBox() {
-		const pointerOver = domEventToSignal(target, 'pointerover')
-		const randomDirection = () => Math.random() * 2 * Math.PI
-		let direction = randomDirection()
-		while(true) {
-				const {signal} = yield anySignal(tick, pointerOver)
-				if(tick == signal)
-						queuedActions = [...queuedActions, move.bind(null, speed * Math.cos(direction), speed * Math.sin(direction))]
-				if(pointerOver == signal)
-						direction = randomDirection()
-		}
+    const pointerOver = domEventToSignal(target, 'pointerover')
+    const randomDirection = () => Math.random() * 2 * Math.PI
+    let direction = randomDirection()
+    while(true) {
+        const {signal} = yield anySignal(tick, pointerOver)
+        if(tick == signal)
+            queuedActions = [...queuedActions, move.bind(null, speed * Math.cos(direction), speed * Math.sin(direction))]
+        if(pointerOver == signal)
+            direction = randomDirection()
+    }
  })
  runGimgen(function * trackScore() {
-		const pointerEnter = domEventToSignal(target, 'pointerenter')
-		const pointerLeave = domEventToSignal(target, 'pointerleave')
-		const loseTargetForTooLong = timeoutSignal(300)
-		const scoreEl = document.querySelector('.score')
-		let maxScore = 0
-		const timestamp = () => new Date().getTime()
-		const setScore = score => scoreEl.textContent = score
-		let currentScoreStart = null
-		const recordNewScore = () => {
-				if(!Number.isInteger(currentScoreStart))
-						return;
-				const newScore = timestamp() - currentScoreStart
-				currentScoreStart = null
-				if(newScore > maxScore)
-						queuedActions = [...queuedActions, setScore.bind(null, maxScore = newScore)]
-		}
-		while(true) {
-				const {signal} = yield anySignal(pointerEnter, pointerLeave)
-				if(pointerEnter === signal)
-						currentScoreStart = timestamp()
-				if(pointerLeave === signal)
-						//they now have some time to re-capture it
-						if(loseTargetForTooLong === (yield anySignal(pointerEnter, loseTargetForTooLong)).signal)
-								recordNewScore()
-		}
+    const pointerEnter = domEventToSignal(target, 'pointerenter')
+    const pointerLeave = domEventToSignal(target, 'pointerleave')
+    const loseTargetForTooLong = timeoutSignal(300)
+    const scoreEl = document.querySelector('.score')
+    let maxScore = 0
+    const timestamp = () => new Date().getTime()
+    const setScore = score => scoreEl.textContent = score
+    let currentScoreStart = null
+    const recordNewScore = () => {
+        if(!Number.isInteger(currentScoreStart))
+            return;
+        const newScore = timestamp() - currentScoreStart
+        currentScoreStart = null
+        if(newScore > maxScore)
+            queuedActions = [...queuedActions, setScore.bind(null, maxScore = newScore)]
+    }
+    while(true) {
+        const {signal} = yield anySignal(pointerEnter, pointerLeave)
+        if(pointerEnter === signal)
+            currentScoreStart = timestamp()
+        if(pointerLeave === signal)
+            //they now have some time to re-capture it
+            if(loseTargetForTooLong === (yield anySignal(pointerEnter, loseTargetForTooLong)).signal)
+                recordNewScore()
+    }
  })
  runGimgen(function * redraw() {
-		const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
-				new Promise(resolve => window.requestAnimationFrame(resolve))
-		)()
-		const refresh = createSignalFactory('refresh', () =>
-				tick.createPromise().then(() => requestAnimationFrame.createPromise)
-		)()
-		while(true) {
-				yield refresh
-				queuedActions.forEach(fn => fn())
-				queuedActions = []
-		}
+    const requestAnimationFrame = createSignalFactory('requestAnimationFrame', () =>
+        new Promise(resolve => window.requestAnimationFrame(resolve))
+    )()
+    const refresh = createSignalFactory('refresh', () =>
+        tick.createPromise().then(() => requestAnimationFrame.createPromise)
+    )()
+    while(true) {
+        yield refresh
+        queuedActions.forEach(fn => fn())
+        queuedActions = []
+    }
 })
 </script>
