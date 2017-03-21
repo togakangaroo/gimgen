@@ -141,10 +141,10 @@ const keysDown = controlSignal(function*({emit}) {
 	const keydown = domEventToSignal(document, 'keydown')
 	const keyup = domEventToSignal(document, 'keyup')
 	const currentlyPressed = {}
-	let interaction
-	while(interaction = yield anySignal(keydown, keyup)) {
+	let interaction,ev
+	while({signal: interaction, result: ev} = yield anySignal(keydown, keyup)) {
 		//if interactionw as a keydown set to true, otherwise false
-		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
+		currentlyPressed[ev.code] = (keydown === interaction)
 		emit(currentlyPressed)
 	}
 })

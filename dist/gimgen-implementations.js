@@ -49,8 +49,11 @@
       yield invokedSignal();
       while (true) {
         var timePassed = (0, _gimgen.timeoutSignal)(ms);
-        var nextSignal = yield (0, _gimgen.anySignal)(timePassed, invokedSignal());
-        if (timePassed === nextSignal) {
+
+        var _ref4 = yield (0, _gimgen.anySignal)(timePassed, invokedSignal()),
+            signal = _ref4.signal;
+
+        if (timePassed === signal) {
           fn();
           yield invokedSignal();
         }
@@ -58,8 +61,8 @@
     };
   });
 
-  var after = exports.after = (0, _gimgen.invokableGimgen)(function (_ref4) {
-    var invokedSignal = _ref4.invokedSignal;
+  var after = exports.after = (0, _gimgen.invokableGimgen)(function (_ref5) {
+    var invokedSignal = _ref5.invokedSignal;
     return function* (count, fn) {
       for (var i = 0; i < count; i += 1) {
         yield invokedSignal(function () {

@@ -74,9 +74,9 @@ const showNotification = gimgen(function*(msg) {
 
 	do {
 	  el.classList.remove('hidden')
-	  while(timeout3sec !== (yield anySignal(timeout3sec, interaction))) { }
+	  while(timeout3sec !== (yield anySignal(timeout3sec, interaction)).signal) { }
 	  el.classList.add('hidden')
-	} while(timeout2sec !== (yield anySignal(timeout2sec, interaction)))
+	} while(timeout2sec !== (yield anySignal(timeout2sec, interaction)).signal)
   el.remove()
 })
 

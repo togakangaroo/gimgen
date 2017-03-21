@@ -74,10 +74,10 @@
 		const randomDirection = () => Math.random() * 2 * Math.PI
 		let direction = randomDirection()
 		while(true) {
-				const next = yield anySignal(tick, pointerOver)
-				if(tick == next)
+				const {signal} = yield anySignal(tick, pointerOver)
+				if(tick == signal)
 						queuedActions = [...queuedActions, move.bind(null, speed * Math.cos(direction), speed * Math.sin(direction))]
-				if(pointerOver == next)
+				if(pointerOver == signal)
 						direction = randomDirection()
 		}
  })
@@ -99,12 +99,12 @@
 						queuedActions = [...queuedActions, setScore.bind(null, maxScore = newScore)]
 		}
 		while(true) {
-				const next = yield anySignal(pointerEnter, pointerLeave)
-				if(pointerEnter === next)
+				const {signal} = yield anySignal(pointerEnter, pointerLeave)
+				if(pointerEnter === signal)
 						currentScoreStart = timestamp()
-				if(pointerLeave === next)
+				if(pointerLeave === signal)
 						//they now have some time to re-capture it
-						if(loseTargetForTooLong === (yield anySignal(pointerEnter, loseTargetForTooLong)))
+						if(loseTargetForTooLong === (yield anySignal(pointerEnter, loseTargetForTooLong)).signal)
 								recordNewScore()
 		}
  })

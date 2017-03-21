@@ -235,9 +235,11 @@
     });
   };
 
-  // Signal that resolves when any of the signals passed in resolve
+  // Signal that resolves when any of the signals passed in resolve. The resulting object will contain
+  //   signal - the signal object that was resolved
+  //   result - the payload the signal was triggered with
   // Usage:
-  //  const s = anySignal(timeoutSignal(300), x.invokedSignal())
+  //  const {signal, result} = anySignal(timeoutSignal(300), x.invokedSignal())
   var anySignal = exports.anySignal = createSignalFactory('anySignal', function (_) {
     for (var _len5 = arguments.length, signals = Array(_len5 > 1 ? _len5 - 1 : 0), _key5 = 1; _key5 < _len5; _key5++) {
       signals[_key5 - 1] = arguments[_key5];
@@ -249,10 +251,13 @@
     return firstResolvedPromise(signalPromise.map(function (x) {
       return x.promise;
     })).then(function (_ref11) {
-      var resolvedPromise = _ref11.promise;
-      return signalPromise.filter(function (x) {
+      var resolvedPromise = _ref11.promise,
+          result = _ref11.result;
+
+      var signal = signalPromise.filter(function (x) {
         return x.promise === resolvedPromise;
       })[0].signal;
+      return { signal: signal, result: result };
     });
   });
 
@@ -264,7 +269,7 @@
   // 	const keyup = domEventToSignal(document, 'keyup')
   // 	const currentlyPressed = {}
   // 	let interaction
-  // 	while(interaction = yield anySignal(keydown, keyup)) {
+  // 	while({signal: interaction} = yield anySignal(keydown, keyup)) {
   // 		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
   // 		emit(currentlyPressed)
   // 	}

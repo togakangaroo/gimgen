@@ -119,7 +119,7 @@ const makeDraggable = (el, dropTargets) => {
 	function * dragging() {
 		fixPosition()
 		while(true) {
-			const recieved = yield anySignal(mouseMoved, mouseUp)
+			const {signal: recieved} = yield anySignal(mouseMoved, mouseUp)
 			if(mouseUp == recieved)
 				yield * notDragging()
 			targetToMouseMove(recieved)
@@ -132,7 +132,7 @@ const makeDraggable = (el, dropTargets) => {
 		fixPosition()
 		el.classList.add('over')
 		while(true) {
-			const recieved = yield anySignal(mouseMoved, mouseUp)
+			const {signal: recieved} = yield anySignal(mouseMoved, mouseUp)
 			if(mouseUp === recieved) {
 				el.classList.remove('over')
 				yield * dropped()
@@ -172,7 +172,7 @@ const makeDraggable = (el, dropTargets) => {
 	function * targetted(target) {
 		target.classList.add('targetted')
 		while(true) {
-			const recieved = yield anySignal(mouseMoved, mouseUp)
+			const {signal: recieved} = yield anySignal(mouseMoved, mouseUp)
 			if(!isOverlapping(el.getBoundingClientRect(), target.getBoundingClientRect())) {
 				target.classList.remove('targetted')
 				yield * idle(target)

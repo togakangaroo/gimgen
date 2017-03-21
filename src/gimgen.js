@@ -84,16 +84,20 @@ export const firstResolvedPromise = (promises) =>
     resolve({promise, result}
   )} )))
 
-// Signal that resolves when any of the signals passed in resolve
+// Signal that resolves when any of the signals passed in resolve. The resulting object will contain
+//   signal - the signal object that was resolved
+//   result - the payload the signal was triggered with
 // Usage:
-//  const s = anySignal(timeoutSignal(300), x.invokedSignal())
+//  const {signal, result} = anySignal(timeoutSignal(300), x.invokedSignal())
 export const anySignal = createSignalFactory('anySignal', (_, ...signals) => {
   const signalPromise = signals.map(signal => ({signal, promise: signal.createPromise()}) )
   return firstResolvedPromise(signalPromise.map(x => x.promise))
-          .then(({promise:resolvedPromise}) =>
-            signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
-          )
+    .then(({promise:resolvedPromise, result}) => {
+      const signal = signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
+      return {signal, result}
+    })
 })
+
 
 // Create a signal used to control other signals in a finer detail. Takes a  signal generator that
 // takes a parameter with an emit method. Returns a signal that will trigger when the emit method is called
@@ -103,7 +107,7 @@ export const anySignal = createSignalFactory('anySignal', (_, ...signals) => {
 // 	const keyup = domEventToSignal(document, 'keyup')
 // 	const currentlyPressed = {}
 // 	let interaction
-// 	while(interaction = yield anySignal(keydown, keyup)) {
+// 	while({signal: interaction} = yield anySignal(keydown, keyup)) {
 // 		currentlyPressed[interaction.getLastEvent().code] = (keydown === interaction)
 // 		emit(currentlyPressed)
 // 	}

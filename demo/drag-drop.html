@@ -33,10 +33,13 @@ const makeDraggable = gimgen(function*(el) {
 		yield mouseDown
 		el.style.position = 'absolute'
 
-		while(mouseMoved === (yield anySignal(mouseMoved, mouseUp))) {
-			const ev = mouseMoved.getLastEvent()
-			console.log(ev.clientX, ev.clientY)
-			Object.assign(el.style, {left: `${ev.clientX}px`, top: `${ev.clientY}px`})
+		let x
+		while(
+			x = yield anySignal(mouseMoved, mouseUp),
+			mouseMoved === x.signal
+		) {
+			console.log(x.result.clientX, x.result.clientY)
+			Object.assign(el.style, {left: `${x.result.clientX}px`, top: `${x.result.clientY}px`})
 		}
 		console.log("doneish")
 	}

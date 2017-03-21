@@ -76,7 +76,7 @@ describe(`anySignal`, () => {
     s2 = manualSignal()
     anySignal(s1, s2)
       .createPromise()
-      .then(firstSignal = sinon.spy())
+      .then(firstSignal = (...args) => Object.assign(firstSignal, {args, called: true}))
   })
 
   it(`is not resolved by default`, () => {
@@ -85,12 +85,12 @@ describe(`anySignal`, () => {
 
   describe(`trigger first signal`, () => {
     deferBeforeEach(() => s1.trigger('a'))
-    it(`resolves with first signal`, () => assert(firstSignal.calledWith(s1)) )
+    it(`resolves with first signal`, () => assert(firstSignal.args[0].signal === s1))
   })
 
   describe(`trigger second signal`, () => {
     deferBeforeEach(() => s2.trigger('b'))
-    it(`triggers with second signal`, () => assert(firstSignal.calledWith(s2)) )
+    it(`resolves with second signal`, () => assert(firstSignal.args[0].signal === s2))
   })
 })
 
