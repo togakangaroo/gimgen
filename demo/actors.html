@@ -92,42 +92,45 @@ const placeCircle = (id, remainingAttempts = 300) => {
     return newShape
 }
 
-const s = manualSignal()
-const getForceAppliedSignal = () => s
+const forceAppliedSignals = new Map()
 
 const startDucky = gimgen(function * () {
   const name = `#${id()}`
-  const shape = placeCircle(name)
-  if(!shape)
+  const s = placeCircle(name)
+  if(!s)
     return console.error(`could not place circle ${id}`)
-  shapes.set(name, shape)
-	let direction = tau*random()
-	let speed = 3 * random()
-	const forceApplied = getForceAppliedSignal(name)
+	s.dx = 3 * random()
+	s.dy = 3 * random()
+	s.forceAppliedSignal = manualSignal()
+  shapes.set(name, s)
 
   while(true) {
-    switch(yield anySignal(tick, forceApplied)) {
+		const {signal, result} = yield anySignal(tick, s.forceAppliedSignal)
+    switch(signal) {
 			case tick:
-				shape.cx += speed*cos(direction)
-				shape.cy += speed*sin(direction)
+				s.cx += s.dx
+				s.cy += s.dy
 			  break;
-			case forceApplied:
-			  direction = forceApplied.last.newDirection
+			case s.forceAppliedSignal:
+			  s.dx = result.dx
+				s.dy = result.dy
 				break;
 		}
 	}
 })
 
-range(50).forEach(() => startDucky())
+range(50).forEach(startDucky)
 
-var manSig = manualSignal()
 
 runGimgen(function * calcForceTransfer() {
 	while(true) {
-		const {signal, result} = yield wrappedAnySignal(tick, manSig)
-		if(signal != tick) {
-			console.log('r', signal, result)
-			debugger;
+		yield tick
+		for(let {cy,cx,r,dx,dy, forceAppliedSignal, id} of shapes.values()) {
+			if( (cy - r <= 0) || (cy + r >= height) )
+				forceAppliedSignal.trigger({ dx, dy: -1*dy, })
+			if( (cx - r <= 0) || (cx + r >= width) )
+				forceAppliedSignal.trigger({ dx: -1*dx, dy, })
+
 		}
 	}
 })
