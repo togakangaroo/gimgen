@@ -8,6 +8,14 @@ javascript constructs for control flow
 
 [For examples check out the demo page](https://togakangaroo.github.io/gimgen)
 
+[Interactive slide deck explaining many of the underlying concepts](http://georgemauer.net/gimgen-preso)
+
+# Disclaimer
+
+I do not yet know exactly *what* I have here. It's interesting, it feels very useful, and it allows me to create very complex code that works correctly on the first attempt far more often than it has any right to.
+
+However, I hesitate to promote it for use in production as it simply hasn't been very vetted by very many people yet. Please help and share your opinions on the issue tracker or by contacting me!
+
 # Environment Support
 
 **gimgen** comes with a umd wrapper and is usable with amd, commonjs, or globals. While it is written with es2015, it is transpiled to

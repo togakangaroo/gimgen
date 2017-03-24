@@ -110,12 +110,15 @@
     }, {});
   };
 
-  var defer = function (fn) {
-    return setTimeout(fn);
+  var run = function (fn) {
+    return fn();
   };
-  // gm - annyingly, necessary for tests to work
-  var _changeDefer = exports._changeDefer = function (fn) {
-    return defer = fn;
+  // By default, runs the next yielded step immediately when a promise is resolved. In certain debugging situations
+  // this can lead to a constantly growing call stack. Call this function to change out the running strategy being used
+  // eg. This will schedule the continuation on the tick following promise resolution
+  //   changeRunStrategy(fn => setTimeout(fn))
+  var changeRunStrategy = exports.changeRunStrategy = function (fn) {
+    return run = fn;
   };
 
   // Returns function that when invoked will return a representation of a signal.
@@ -288,11 +291,6 @@
     }
   });
 
-  var run = function (fn) {
-    return function () {
-      return fn();
-    };
-  };
   var asyncRecursive = function (fn) {
     return function () {
       for (var _len6 = arguments.length, args = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
@@ -304,7 +302,7 @@
           nextArgs[_key7] = arguments[_key7];
         }
 
-        return defer(run(fn.bind.apply(fn, [null, recurse].concat(nextArgs))));
+        return run(fn.bind.apply(fn, [null, recurse].concat(nextArgs)));
       };
       fn.apply(undefined, [recurse].concat(args));
     };

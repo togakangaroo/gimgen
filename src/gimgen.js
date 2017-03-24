@@ -8,9 +8,12 @@ const rebindFuncs = (entries, getFirstParam) =>
   entries.map(([key, val]) => [key, !isFunction(val) ? val : (...args) => val(getFirstParam(), ...args)])
         .reduce((obj, [key, val]) => (obj[key] = val, obj), {})
 
-let defer = (fn) => setTimeout(fn)
-// gm - annyingly, necessary for tests to work
-export const _changeDefer = fn => defer = fn
+let run = (fn) => fn()
+// By default, runs the next yielded step immediately when a promise is resolved. In certain debugging situations
+// this can lead to a constantly growing call stack. Call this function to change out the running strategy being used
+// eg. This will schedule the continuation on the tick following promise resolution
+//   changeRunStrategy(fn => setTimeout(fn))
+export const changeRunStrategy = fn => run = fn
 
 // Returns function that when invoked will return a representation of a signal.
 // A signal is anything with a `createPromise` method
@@ -123,10 +126,9 @@ export const controlSignal = createSignalFactory('controlSignal', {
   createPromise: ({state}) => state.createPromise()
 })
 
-const run = fn => () => fn()
 const asyncRecursive = fn => (...args) => {
 		const recurse = (...nextArgs) =>
-				defer(run(fn.bind(null, recurse, ...nextArgs)))
+				run(fn.bind(null, recurse, ...nextArgs))
 		fn(recurse, ...args)
 }
 

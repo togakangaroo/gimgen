@@ -11,11 +11,9 @@ const deferBeforeEach = fn => beforeEach(deferFn(fn))
 let clock
 beforeEach(() => {
   clock = sinon.useFakeTimers()
-  _changeDefer(fn => fn())
 } )
 afterEach(() => {
   clock.restore()
-  _changeDefer(setTimeout)
 })
 
 describe(`gimgen a generator`, () => {
