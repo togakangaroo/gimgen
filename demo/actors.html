@@ -45,14 +45,11 @@
 const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, firstResolvedPromise,
 				controlSignal, createSignalFactory, promiseToSignal, manualSignal } = window.gimgen
 const { pow, sqrt, random, PI } = Math
-const tau = 2*PI
-const sin = rTau => Math.sin(2*rTau)
-const cos = rTau => Math.cos(2*rTau)
 const svg = document.querySelector('svg')
 const { width, height } = svg.viewBox.baseVal
 
-const tick = timeoutSignal(1000/20)
-const renderTick = timeoutSignal(1000/5)
+const tick = timeoutSignal(1000/60)
+const renderTick = timeoutSignal(1000/30)
 
 const range = (max, min = 0) => new Array(max - min).fill(0).map((_, i) => min + i)
 const rand = (max, min = 0) => random() * (max - min) + min
@@ -92,48 +89,31 @@ const placeCircle = (id, remainingAttempts = 300) => {
     return newShape
 }
 
-const forceAppliedSignals = new Map()
-
 const startDucky = gimgen(function * () {
   const name = `#${id()}`
   const s = placeCircle(name)
   if(!s)
     return console.error(`could not place circle ${id}`)
-	s.dx = 3 * random()
-	s.dy = 3 * random()
+	let dx = rand(1, -1)
+	let dy = rand(1, -1)
 	s.forceAppliedSignal = manualSignal()
   shapes.set(name, s)
 
   while(true) {
-		const {signal, result} = yield anySignal(tick, s.forceAppliedSignal)
-    switch(signal) {
-			case tick:
-				s.cx += s.dx
-				s.cy += s.dy
-			  break;
-			case s.forceAppliedSignal:
-			  s.dx = result.dx
-				s.dy = result.dy
-				break;
-		}
+		yield tick
+		if( (s.cy - s.r <= 0) || (s.cy + s.r >= height) )
+				dy *= -1
+		if( (s.cx - s.r <= 0) || (s.cx + s.r >= width) )
+				dx *= -1
+
+		yield tick
+		s.cx += dx
+		s.cy += dy
+
 	}
 })
 
 range(50).forEach(startDucky)
-
-
-runGimgen(function * calcForceTransfer() {
-	while(true) {
-		yield tick
-		for(let {cy,cx,r,dx,dy, forceAppliedSignal, id} of shapes.values()) {
-			if( (cy - r <= 0) || (cy + r >= height) )
-				forceAppliedSignal.trigger({ dx, dy: -1*dy, })
-			if( (cx - r <= 0) || (cx + r >= width) )
-				forceAppliedSignal.trigger({ dx: -1*dx, dy, })
-
-		}
-	}
-})
 
 runGimgen(function * renderLoop(){
   const { h, diff, patch, create } = window.virtualDom
@@ -141,7 +121,7 @@ runGimgen(function * renderLoop(){
     for(let {cx, cy, r} of shapes) {
 			if(cx+r < 0 || cx-r>width || cy+r<0 || cy-r>height)
 				continue
-      yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333'}, namespace: "http://www.w3.org/2000/svg"})
+      yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333', stroke: '#000000', 'stroke-width': 0.2 }, namespace: "http://www.w3.org/2000/svg"})
 		}
   }
 
