@@ -1,6 +1,9 @@
 <section>
     <p>
-        Actors, Baby!
+        Actors, Baby! <a href="https://github.com/togakangaroo/gimgen/blob/gh-pages/demo/actors.html">Check out Source</a>
+    </p>
+    <p>
+        These balls are each controlled by their own autonomous coroutine. If balls hit each other, they will disable collision detection on each other for a bit. This is what causes the grouping that you see.
     </p>
 </section>
 <style>
@@ -85,7 +88,7 @@ const placeCircle = (id, remainingAttempts = 300) => {
     return newShape
 }
 
-const startDucky = gimgen(function * () {
+const startBouncer = gimgen(function * () {
   const name = `#${id()}`
   const s = placeCircle(name)
   if(!s)
@@ -126,7 +129,7 @@ const startDucky = gimgen(function * () {
   }
 })
 
-range(50).forEach(startDucky)
+range(50).forEach(startBouncer)
 
 runGimgen(function * renderLoop(){
   const { h, diff, patch, create } = window.virtualDom
