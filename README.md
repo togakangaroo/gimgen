@@ -88,7 +88,7 @@ This signal object can then be yielded back within your methods. [See demos](htt
 * `domEventToSignal(domNode, eventName)` - emits the next time the given event occurs after being yielded. The signal has a `getLastEvent()->Event` method which is useful for accessing the dom event object.
 * `promiseToSignal(promise)` - when yielded will emit when the wrapped promise becomes resolved or immediately if the promise is already resolved
 * `manualSignal()` - returns a signal object with a `.trigger(x)` method. When yielded emits the next time the object's `trigger()` method is invoked. The first parameter to the trigger is returned by the yield.
-* `anySignal(...signals)` - when yielded, returns the first of the passed in signals that end up emitting. Useful when one of several things might happen next. (see notifications demo for usages)
+* `anySignal(...signals)` - when yielded, returns the ifrst of the passed in signals to occur in this structure: `{signal, result}` where `signal` is a reference to the signal that happened, and `result` is its last payload. Useful when one of several things might happen next. (See demos for usages)
 * `controlSignal(function * ({emit}))` - Takes a generator that is a **gimgen** coroutine. This will start executing immediately. When yielded, the signal will emit whenever the coroutine invokes the injected `emit` method. This is very useful for aggregating events. (see ping pong demo)
 
 ### Creating your own signals

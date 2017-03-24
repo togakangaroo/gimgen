@@ -125,9 +125,9 @@ export const controlSignal = createSignalFactory('controlSignal', {
 
 const run = fn => () => fn()
 const asyncRecursive = fn => (...args) => {
-	const recurse = (...nextArgs) =>
+		const recurse = (...nextArgs) =>
 				defer(run(fn.bind(null, recurse, ...nextArgs)))
-	fn(recurse, ...args)
+		fn(recurse, ...args)
 }
 
 const runPromises = asyncRecursive((recurse, iterator, valueToYield) => {
