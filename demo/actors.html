@@ -94,10 +94,13 @@ const startBouncer = gimgen(function * () {
   if(!s)
     return console.error(`could not place circle ${id}`)
   shapes.set(name, s)
-  // we want to track recently hit balls
+  // we want to track recently hit balls so that we can disable collision detection on them
+  // recently hit balls occasionally get stuck together if bouncing doesn't clear the other ball's radius
   const recentHits = new Map()
 
   while(true) {
+    // An actor loop consists of two ticks. The first in which all collisions are calculated, and the second after which all force changes are applied
+
     yield tick
     let {dx, dy} = s
     // hit walls
