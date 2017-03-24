@@ -1,6 +1,6 @@
 {
   "name": "gimgen",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "library using javascript generators to control program flow and synchronize signals",
   "main": "src/gimgen.js",
   "scripts": {

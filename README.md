@@ -8,6 +8,14 @@ javascript constructs for control flow
 
 [For examples check out the demo page](https://togakangaroo.github.io/gimgen)
 
+[Interactive slide deck explaining many of the underlying concepts](http://georgemauer.net/gimgen-preso)
+
+# Disclaimer
+
+I do not yet know exactly *what* I have here. It's interesting, it feels very useful, and it allows me to create very complex code that works correctly on the first attempt far more often than it has any right to.
+
+However, I hesitate to promote it for use in production as it simply hasn't been very vetted by very many people yet. Please help and share your opinions on the issue tracker or by contacting me!
+
 # Environment Support
 
 **gimgen** comes with a umd wrapper and is usable with amd, commonjs, or globals. While it is written with es2015, it is transpiled to
@@ -88,7 +96,7 @@ This signal object can then be yielded back within your methods. [See demos](htt
 * `domEventToSignal(domNode, eventName)` - emits the next time the given event occurs after being yielded. The signal has a `getLastEvent()->Event` method which is useful for accessing the dom event object.
 * `promiseToSignal(promise)` - when yielded will emit when the wrapped promise becomes resolved or immediately if the promise is already resolved
 * `manualSignal()` - returns a signal object with a `.trigger(x)` method. When yielded emits the next time the object's `trigger()` method is invoked. The first parameter to the trigger is returned by the yield.
-* `anySignal(...signals)` - when yielded, returns the first of the passed in signals that end up emitting. Useful when one of several things might happen next. (see notifications demo for usages)
+* `anySignal(...signals)` - when yielded, returns the ifrst of the passed in signals to occur in this structure: `{signal, result}` where `signal` is a reference to the signal that happened, and `result` is its last payload. Useful when one of several things might happen next. (See demos for usages)
 * `controlSignal(function * ({emit}))` - Takes a generator that is a **gimgen** coroutine. This will start executing immediately. When yielded, the signal will emit whenever the coroutine invokes the injected `emit` method. This is very useful for aggregating events. (see ping pong demo)
 
 ### Creating your own signals

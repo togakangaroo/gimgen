@@ -1,11 +1,10 @@
 <section>
     <p>
-        Actors, Baby!
+        Actors, Baby! <a href="https://github.com/togakangaroo/gimgen/blob/gh-pages/demo/actors.html">Check out Source</a>
     </p>
-    <figure>
-        <span class="score">0</span>
-        <figcaption>Max Captured</figcaption>
-    </figure>
+    <p>
+        These balls are each controlled by their own autonomous coroutine. If balls hit each other, they will disable collision detection on each other for a bit. This is what causes the grouping that you see.
+    </p>
 </section>
 <style>
  body {
@@ -31,10 +30,6 @@
  p {
      flex: 1;
  }
- figure {
-     display: flex;
-     flex-direction: column;
- }
 </style>
 <svg viewBox="0 0 100 100" preserveAspectRatio="none">
 </svg>
@@ -43,16 +38,13 @@
 <script src="../dist/gimgen.js"></script>
 <script>
 const { gimgen, runGimgen, timeoutSignal, domEventToSignal, anySignal, firstResolvedPromise,
-				controlSignal, createSignalFactory, promiseToSignal, manualSignal } = window.gimgen
+        controlSignal, createSignalFactory, promiseToSignal, manualSignal } = window.gimgen
 const { pow, sqrt, random, PI } = Math
-const tau = 2*PI
-const sin = rTau => Math.sin(2*rTau)
-const cos = rTau => Math.cos(2*rTau)
 const svg = document.querySelector('svg')
 const { width, height } = svg.viewBox.baseVal
 
-const tick = timeoutSignal(1000/20)
-const renderTick = timeoutSignal(1000/5)
+const tick = timeoutSignal(1000/60)
+const renderTick = timeoutSignal(1000/30)
 
 const range = (max, min = 0) => new Array(max - min).fill(0).map((_, i) => min + i)
 const rand = (max, min = 0) => random() * (max - min) + min
@@ -62,23 +54,27 @@ const wrappedAnySignal = createSignalFactory('wrappedAnySignal', (_, ...signals)
   const signalPromise = signals.map(signal => ({signal, promise: signal.createPromise()}) )
   return firstResolvedPromise(signalPromise.map(x => x.promise))
     .then(({promise:resolvedPromise, result}) => {
-			const signal = signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
-			return {signal, result}
-		})
+      const signal = signalPromise.filter(x => x.promise === resolvedPromise)[0].signal
+      return {signal, result}
+    })
 })
 
 let id_counter = 0
 const id = () => id_counter += 1
 
-const radius = 3
+const radius = 2
 const overlaps = (s1, s2) =>
     (s1.r + s2.r) >= sqrt(pow(s1.cx - s2.cx, 2) + pow(s1.cy - s2.cy, 2))
-const circleShape = (id, r, [cx, cy]) => ({id, r, cx, cy })
-let space = {}
+const circleShape = (id, r, [cx, cy], [dx, dy]) => ({id, r, cx, cy, dx, dy, mass: r })
 let shapes = new Map()
+const overlappingShapes = function * (shape) {
+    for(let s of shapes.values())
+        if(s != shape && overlaps(shape, s))
+            yield s
+}
 const anyShapeOverlaps = (shape) => {
     for(let s of shapes.values())
-        if(overlaps(shape, s))
+        if(s != shape && overlaps(shape, s))
             return true
     return false
 }
@@ -86,63 +82,66 @@ const placeCircle = (id, remainingAttempts = 300) => {
     if(remainingAttempts <= 0)
         return null
     const location = [rand(width-radius, radius), rand(height-radius, radius)]
-    const newShape = circleShape(id, radius, location)
+    const newShape = circleShape(id, radius, location, [rand(1, -1), rand(1, -1)])
     if(anyShapeOverlaps(newShape))
         return placeCircle(id, remainingAttempts-1)
     return newShape
 }
 
-const forceAppliedSignals = new Map()
-
-const startDucky = gimgen(function * () {
+const startBouncer = gimgen(function * () {
   const name = `#${id()}`
   const s = placeCircle(name)
   if(!s)
     return console.error(`could not place circle ${id}`)
-	s.dx = 3 * random()
-	s.dy = 3 * random()
-	s.forceAppliedSignal = manualSignal()
   shapes.set(name, s)
+  // we want to track recently hit balls so that we can disable collision detection on them
+  // recently hit balls occasionally get stuck together if bouncing doesn't clear the other ball's radius
+  const recentHits = new Map()
 
   while(true) {
-		const {signal, result} = yield anySignal(tick, s.forceAppliedSignal)
-    switch(signal) {
-			case tick:
-				s.cx += s.dx
-				s.cy += s.dy
-			  break;
-			case s.forceAppliedSignal:
-			  s.dx = result.dx
-				s.dy = result.dy
-				break;
-		}
-	}
+    // An actor loop consists of two ticks. The first in which all collisions are calculated, and the second after which all force changes are applied
+
+    yield tick
+    let {dx, dy} = s
+    // hit walls
+    if( (s.cx - s.r <= 0 && dx < 0) || (s.cx + s.r >= width && dx > 0) )
+        dx *= -1
+    if( (s.cy - s.r <= 0 && dy < 0) || (s.cy + s.r >= height && dy > 0) )
+        dy *= -1
+    // hit other circles
+    for(let other of overlappingShapes(s)){
+        if((recentHits.get(s)||0) <= 0 ) {
+            dx = (s.mass - other.mass)/(s.mass + other.mass) * dx + (2*other.mass)/(s.mass + other.mass) * other.dx
+            dy = (s.mass - other.mass)/(s.mass + other.mass) * dy + (2*other.mass)/(s.mass + other.mass) * other.dy
+            recentHits.set(s, 3);
+        }
+    }
+    for(let [s, remaining] of [...recentHits.entries()]) {
+        if(0 >= remaining)
+            recentHits.delete(s)
+        else
+            recentHits.set(s, remaining-1)
+    }
+
+    yield tick
+    //move things
+    s.cx += dx
+    s.cy += dy
+    s.dx = dx
+    s.dy = dy
+  }
 })
 
-range(50).forEach(startDucky)
-
-
-runGimgen(function * calcForceTransfer() {
-	while(true) {
-		yield tick
-		for(let {cy,cx,r,dx,dy, forceAppliedSignal, id} of shapes.values()) {
-			if( (cy - r <= 0) || (cy + r >= height) )
-				forceAppliedSignal.trigger({ dx, dy: -1*dy, })
-			if( (cx - r <= 0) || (cx + r >= width) )
-				forceAppliedSignal.trigger({ dx: -1*dx, dy, })
-
-		}
-	}
-})
+range(50).forEach(startBouncer)
 
 runGimgen(function * renderLoop(){
   const { h, diff, patch, create } = window.virtualDom
   const renderActors = function * (shapes) {
     for(let {cx, cy, r} of shapes) {
-			if(cx+r < 0 || cx-r>width || cy+r<0 || cy-r>height)
-				continue
-      yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333'}, namespace: "http://www.w3.org/2000/svg"})
-		}
+      if(cx+r < 0 || cx-r>width || cy+r<0 || cy-r>height)
+        continue
+      yield h('circle', {attributes: {cx, cy, r, fill: '#AA3333', stroke: '#000000', 'stroke-width': 0.2 }, namespace: "http://www.w3.org/2000/svg"})
+    }
   }
 
   const render = ({ shapes }) =>
