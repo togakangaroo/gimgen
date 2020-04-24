@@ -1,12 +1,18 @@
 const isFunction = <T> (x: Function|T) => 'function' === typeof x
 type PlainObjectType = {[P in any]: any}
+type ObjectKeyType = string | number
+type EntryType = [ObjectKeyType, unknown]
 
+const foo = Object.entries({})
 const omitEntries = (obj: PlainObjectType, ...propsToOmit: string[]) : PlainObjectType =>
     Object.keys(obj).map(k => [k, obj[k]])
         .filter(([key]) => !~propsToOmit.indexOf(key))
-const rebindFuncs = (entries, getFirstParam) =>
-    entries.map(([key, val]) => [key, !isFunction(val) ? val : (...args) => val(getFirstParam(), ...args)])
-        .reduce((obj, [key, val]) => (obj[key] = val, obj), {})
+
+const rebindFuncs = (entries: [ObjectKeyType, unknown][], getFirstParam: () => unknown) =>
+    entries.map(([key, val]) => [
+        key,
+        !isFunction(val) ? val : (...args: unknown[]) => (val as Function)(getFirstParam(), ...args)
+    ]).reduce((obj: PlainObjectType, [key, val]) => (obj[key] = val, obj), {})
 
 export type RunStrategyType = (fn: Function) => void
 let run : RunStrategyType = fn => fn() // by default synchronous
@@ -20,7 +26,7 @@ export const changeRunStrategy = (runFn: RunStrategyType) => run = runFn
 // Returns function that when invoked will return a representation of a signal.
 // A signal is anything with a `createPromise` method
 // See below for usages.
-export type GetInitialStateType = () => PlainObjectType
+export type GetInitialStateType = (..._: any[]) => PlainObjectType
 export type CreatePromiseType = <T> () => Promise<T>
     export type PromiseFactoryType = {
         createPromise: CreatePromiseType,
@@ -34,8 +40,8 @@ export const createSignalFactory = (name: string, propsOrCreatePromise: PropsOrC
     const props = propsOrCreatePromise as PromiseFactoryType
     const { createPromise, getInitialState=null } = props
     const templateEntries = omitEntries(props, 'createPromise', 'getInitialState')
-    const createInitial = isFunction(getInitialState) ? getInitialState : () => getInitialState;
-    return (...signalInvocationArgs)  => {
+    const createInitial: GetInitialStateType = isFunction(getInitialState) ? getInitialState : () => getInitialState;
+    return (...signalInvocationArgs: any[])  => {
         let state = createInitial(...signalInvocationArgs)
         const setState = newState => state = newState
         const getFirstParam = () => ({state, setState})
