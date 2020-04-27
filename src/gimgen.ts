@@ -1,18 +1,22 @@
-const isFunction = <T> (x: Function|T) => 'function' === typeof x
+const isFunction = <T> (x: (Function | T)): x is Function =>
+    'function' === typeof x
 type PlainObjectType = {[P in any]: any}
 type ObjectKeyType = string | number
-type EntryType = [ObjectKeyType, unknown]
+type ObjectEntryType = [ObjectKeyType, unknown]
+type FactoryType<T> = (..._: unknown[]) => T
+type ItemOrFactoryType<T> = T | FactoryType<T>
 
-const foo = Object.entries({})
-const omitEntries = (obj: PlainObjectType, ...propsToOmit: string[]) : PlainObjectType =>
-    Object.keys(obj).map(k => [k, obj[k]])
-        .filter(([key]) => !~propsToOmit.indexOf(key))
+const omitEntries = (obj: PlainObjectType, ...propsToOmit: string[]) : ObjectEntryType[] =>
+    Object.entries(obj).filter(([key]) => !propsToOmit.includes(key))
 
-const rebindFuncs = (entries: [ObjectKeyType, unknown][], getFirstParam: () => unknown) =>
-    entries.map(([key, val]) => [
-        key,
-        !isFunction(val) ? val : (...args: unknown[]) => (val as Function)(getFirstParam(), ...args)
-    ]).reduce((obj: PlainObjectType, [key, val]) => (obj[key] = val, obj), {})
+const wrapFnButPrependArg = (fn: Function, getFirstArg: () => unknown) =>
+    (...args: unknown[]) => fn(getFirstArg(), ...args)
+const rebindFirstParameterOfAllMethods = (entries: ObjectEntryType[], getFirstParam: () => unknown) =>
+    entries.map(([key, val]) : ObjectEntryType => {
+        if(!isFunction(val))
+            return [key, val]
+        return [key, wrapFnButPrependArg(val as Function, getFirstParam)]
+    }).reduce((obj: PlainObjectType, [key, val]) => (obj[key] = val, obj), {})
 
 export type RunStrategyType = (fn: Function) => void
 let run : RunStrategyType = fn => fn() // by default synchronous
@@ -23,40 +27,52 @@ let run : RunStrategyType = fn => fn() // by default synchronous
 //   changeRunStrategy(fn => setTimeout(fn))
 export const changeRunStrategy = (runFn: RunStrategyType) => run = runFn
 
-// Returns function that when invoked will return a representation of a signal.
-// A signal is anything with a `createPromise` method
-// See below for usages.
-export type GetInitialStateType = (..._: any[]) => PlainObjectType
-export type CreatePromiseType = <T> () => Promise<T>
-    export type PromiseFactoryType = {
-        createPromise: CreatePromiseType,
-        getInitialState?: GetInitialStateType
-    }
-export type PropsOrCreatePromiseType = PromiseFactoryType | CreatePromiseType
-export const createSignalFactory = (name: string, propsOrCreatePromise: PropsOrCreatePromiseType ) => {
-    if(isFunction(propsOrCreatePromise))
-        return createSignalFactory(name, {createPromise: propsOrCreatePromise as CreatePromiseType})
+export type StateType = PlainObjectType
+export type CreatePromiseType = FactoryType<Promise<unknown>>
+export type SignalPrototypeType = {
+    createPromise: CreatePromiseType,
+    getInitialState?: ItemOrFactoryType<StateType>,
+}
+export type SignalType = SignalPrototypeType
+export type SignalInstanceType = {
+    state: StateType,
+    setState: (_: StateType) => undefined,
+}
 
-    const props = propsOrCreatePromise as PromiseFactoryType
+// Returns a function that when invoked will return a representation of a signal (SignalType).
+// A SignalPrototypeType must have a `createPromise` method.
+// It may optionally have a `getInitialState` method that provides an object which sets the state internal to a signal instance
+// similar to how ReactJs components work.
+// See below for usages.
+export const createSignalFactory = (
+    name: string,
+    signalOrCreatePromise: (SignalPrototypeType | CreatePromiseType)
+) : FactoryType<SignalType> => {
+    if(isFunction(signalOrCreatePromise))
+        return createSignalFactory(name, {createPromise: signalOrCreatePromise})
+
+    const props = signalOrCreatePromise as SignalType
     const { createPromise, getInitialState=null } = props
     const templateEntries = omitEntries(props, 'createPromise', 'getInitialState')
-    const createInitial: GetInitialStateType = isFunction(getInitialState) ? getInitialState : () => getInitialState;
-    return (...signalInvocationArgs: any[])  => {
+    const createInitial  = isFunction(getInitialState)
+        ? getInitialState
+        : () => getInitialState;
+    return (...signalInvocationArgs: unknown[])  => {
         let state = createInitial(...signalInvocationArgs)
-        const setState = newState => state = newState
+        const setState = (newState: StateType) => state = newState
         const getFirstParam = () => ({state, setState})
-        return Object.assign(
-            { toString: () => name},
-            rebindFuncs(templateEntries, getFirstParam),
-            { createPromise: () => createPromise(getFirstParam(), ...signalInvocationArgs), }
-        )
+        return {
+            toString: () => name,
+            ...rebindFirstParameterOfAllMethods(templateEntries, getFirstParam),
+            createPromise: () => createPromise(getFirstParam(), ...signalInvocationArgs),
+        }
     }
 }
 
 // Convert a DOM event to a signal
 // Usage:
 //  yield domEventToSignal(document.querySelector('#log-in'), 'click')
-export const domEventToSignal = (el, eventName) =>
+export const domEventToSignal = (el: Element, eventName: string) =>
     createSignalFactory(`DOM event ${eventName}`, {
         createPromise: ({setState}) => new Promise(resolve => {
             el.addEventListener(eventName, function triggerResolve(event){
