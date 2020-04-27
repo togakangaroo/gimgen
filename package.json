@@ -20,6 +20,7 @@
         "esm": "^3.2.25",
         "mocha": "^7.1.1",
         "mock-browser": "^0.92.10",
+        "prettier": "^2.0.5",
         "sinon": "^1.17.3",
         "typescript": "^3.8.3"
     }
