@@ -37,17 +37,24 @@ let run: RunStrategyType = fn => fn(); // by default synchronous
 //   changeRunStrategy(fn => setTimeout(fn))
 export const changeRunStrategy = (runFn: RunStrategyType) => (run = runFn);
 
-export type StateType = PlainObjectType;
-export type CreatePromiseType = FactoryType<Promise<unknown>>;
+export type StateType = any;
+export type CreatePromiseType<T> = (
+  _: SignalInstanceType,
+  ...__: any[]
+) => Promise<T>;
 export type SignalPrototypeType = {
-  createPromise: CreatePromiseType;
+  createPromise: CreatePromiseType<unknown>;
   getInitialState?: ItemOrFactoryType<StateType>;
-};
-export type SignalType = SignalPrototypeType;
+} & { [P in any]: SignalInstanceFunction };
+export type SignalType = SignalPrototypeType & {};
 export type SignalInstanceType = {
   state: StateType;
-  setState: (_: StateType) => undefined;
+  setState: (_: StateType) => unknown;
 };
+type SignalInstanceFunction = (
+  instance: SignalInstanceType,
+  ..._: unknown[]
+) => unknown;
 
 // Returns a function that when invoked will return a representation of a signal (SignalType).
 // A SignalPrototypeType must have a `createPromise` method.
@@ -56,7 +63,7 @@ export type SignalInstanceType = {
 // See below for usages.
 export const createSignalFactory = (
   name: string,
-  signalOrCreatePromise: SignalPrototypeType | CreatePromiseType
+  signalOrCreatePromise: SignalPrototypeType | CreatePromiseType<unknown>
 ): FactoryType<SignalType> => {
   if (isFunction(signalOrCreatePromise))
     return createSignalFactory(name, { createPromise: signalOrCreatePromise });
@@ -74,7 +81,10 @@ export const createSignalFactory = (
   return (...signalInvocationArgs: unknown[]) => {
     let state = createInitial(...signalInvocationArgs);
     const setState = (newState: StateType) => (state = newState);
-    const getFirstParam = () => ({ state, setState });
+    const getFirstParam: FactoryType<SignalInstanceType> = () => ({
+      state,
+      setState,
+    });
     return {
       toString: () => name,
       ...rebindFirstParameterOfAllMethods(templateEntries, getFirstParam),
@@ -97,13 +107,13 @@ export const domEventToSignal = (el: Element, eventName: string) =>
           resolve(event);
         });
       }),
-    getLastEvent: ({ state }) => state,
+    getLastEvent: ({ state }: SignalInstanceType) => state,
   })();
 
 // Convert a then-able promise to a signal
 // Usage:
 //  yield promiseToSignal($.get('/data'))
-export const promiseToSignal = promise =>
+export const promiseToSignal = (promise: Promise<unknown>) =>
   createSignalFactory("promiseSignal", () => promise)();
 
 // Signal that triggers in the passed in amount of ms
@@ -111,7 +121,7 @@ export const promiseToSignal = promise =>
 //  yield timeoutSignal(100)
 export const timeoutSignal = createSignalFactory(
   "timeoutSignal",
-  (_, ms) => new Promise(resolve => setTimeout(resolve, ms))
+  (_, ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 );
 
 // Signal that you trigger manually
@@ -127,12 +137,16 @@ export const manualSignal = createSignalFactory("manualSignal", {
     new Promise(resolve => setState([resolve, ...toNotify])),
   trigger: ({ state: toNotify, setState }, ...args) => {
     if (args.length > 1) setState([]);
-    toNotify.forEach(fn => fn(...args));
+    toNotify.forEach((fn: Function) => fn(...args));
   },
 });
 
-export const firstResolvedPromise = promises =>
-  new Promise(resolve =>
+type PromiseType<T> = {
+  result: T;
+  promise: Promise<T>;
+};
+export const firstResolvedPromise = <T>(promises: Promise<T>[]) =>
+  new Promise<PromiseType<T>>(resolve =>
     promises.map(promise =>
       promise.then(result => {
         resolve({ promise, result });
@@ -150,7 +164,7 @@ export const anySignal = createSignalFactory("anySignal", (_, ...signals) => {
     signal,
     promise: signal.createPromise(),
   }));
-  return firstResolvedPromise(signalPromise.map(x => x.promise)).then(
+  return firstResolvedPromise<any>(signalPromise.map(x => x.promise)).then(
     ({ promise: resolvedPromise, result }) => {
       const signal = signalPromise.filter(x => x.promise === resolvedPromise)[0]
         .signal;
@@ -175,7 +189,9 @@ export const anySignal = createSignalFactory("anySignal", (_, ...signals) => {
 // ...
 // const keysPressed = yield keysDown
 export const controlSignal = createSignalFactory("controlSignal", {
-  getInitialState: signalGenerator => {
+  getInitialState: (
+    signalGenerator: any
+  ): signalGenerator is Generator<unknown, void, unknown> => {
     const triggerSignal = manualSignal();
     gimgen(signalGenerator)({ emit: triggerSignal.trigger });
     return triggerSignal;
