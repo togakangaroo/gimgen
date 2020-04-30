@@ -4,7 +4,7 @@ type PlainObjectType = { [P in any]: any };
 type ObjectKeyType = string | number;
 type ObjectEntryType = [ObjectKeyType, unknown];
 type FactoryType<T> = (..._: unknown[]) => T;
-type ItemOrFactoryType<T> = T | FactoryType<T>;
+type ItemOrFactoryType<T> = T | ((...__: any[]) => T);
 
 const omitEntries = (
   obj: PlainObjectType,
@@ -37,22 +37,29 @@ let run: RunStrategyType = fn => fn(); // by default synchronous
 //   changeRunStrategy(fn => setTimeout(fn))
 export const changeRunStrategy = (runFn: RunStrategyType) => (run = runFn);
 
-export type StateType = any;
-export type CreatePromiseType<T> = (
-  _: SignalInstanceType,
+export type CreatePromiseType<PromiseType, StateType> = (
+  _: SignalInstanceType<StateType>,
   ...__: any[]
-) => Promise<T>;
-export type SignalPrototypeType = {
-  createPromise: CreatePromiseType<unknown>;
+) => Promise<PromiseType>;
+export type SignalPrototypeType<
+  PromiseType = unknown,
+  StateType = PlainObjectType
+> = {
+  createPromise: CreatePromiseType<PromiseType, StateType>;
   getInitialState?: ItemOrFactoryType<StateType>;
-} & { [P in any]: SignalInstanceFunction };
-export type SignalType = SignalPrototypeType & {};
-export type SignalInstanceType = {
+} & { [P in any]: SignalInstanceFunction<StateType> };
+
+export type SignalType<
+  PromiseType = unknown,
+  StateType = PlainObjectType
+> = SignalPrototypeType<PromiseType, StateType> & {};
+
+export type SignalInstanceType<StateType> = {
   state: StateType;
-  setState: (_: StateType) => unknown;
+  setState: (_: StateType) => void;
 };
-type SignalInstanceFunction = (
-  instance: SignalInstanceType,
+type SignalInstanceFunction<StateType = PlainObjectType> = (
+  instance: SignalInstanceType<StateType>,
   ..._: unknown[]
 ) => unknown;
 
@@ -61,14 +68,19 @@ type SignalInstanceFunction = (
 // It may optionally have a `getInitialState` method that provides an object which sets the state internal to a signal instance
 // similar to how ReactJs components work.
 // See below for usages.
-export const createSignalFactory = (
+export const createSignalFactory = <
+  PromiseType = unknown,
+  StateType = PlainObjectType
+>(
   name: string,
-  signalOrCreatePromise: SignalPrototypeType | CreatePromiseType<unknown>
-): FactoryType<SignalType> => {
+  signalOrCreatePromise:
+    | SignalPrototypeType<PromiseType, StateType>
+    | CreatePromiseType<PromiseType, StateType>
+): FactoryType<SignalType<PromiseType, StateType>> => {
   if (isFunction(signalOrCreatePromise))
     return createSignalFactory(name, { createPromise: signalOrCreatePromise });
 
-  const props = signalOrCreatePromise as SignalType;
+  const props = signalOrCreatePromise as SignalType<PromiseType, StateType>;
   const { createPromise, getInitialState = null } = props;
   const templateEntries = omitEntries(
     props,
@@ -77,11 +89,11 @@ export const createSignalFactory = (
   );
   const createInitial = isFunction(getInitialState)
     ? getInitialState
-    : () => getInitialState;
+    : (..._: any[]) => getInitialState as StateType;
   return (...signalInvocationArgs: unknown[]) => {
     let state = createInitial(...signalInvocationArgs);
     const setState = (newState: StateType) => (state = newState);
-    const getFirstParam: FactoryType<SignalInstanceType> = () => ({
+    const getFirstParam: FactoryType<SignalInstanceType<StateType>> = () => ({
       state,
       setState,
     });
@@ -97,8 +109,14 @@ export const createSignalFactory = (
 // Convert a DOM event to a signal
 // Usage:
 //  yield domEventToSignal(document.querySelector('#log-in'), 'click')
-export const domEventToSignal = (el: Element, eventName: string) =>
-  createSignalFactory(`DOM event ${eventName}`, {
+export type DomEventToSignalType = (
+  el: Element,
+  eventName: string
+) => SignalType & {
+  getLastEvent: () => Event;
+};
+export const domEventToSignal: DomEventToSignalType = (el, eventName) =>
+  createSignalFactory<Event, Event>(`DOM event ${eventName}`, {
     createPromise: ({ setState }) =>
       new Promise(resolve => {
         el.addEventListener(eventName, function triggerResolve(event) {
@@ -107,7 +125,7 @@ export const domEventToSignal = (el: Element, eventName: string) =>
           resolve(event);
         });
       }),
-    getLastEvent: ({ state }: SignalInstanceType) => state,
+    getLastEvent: ({ state }: SignalInstanceType<Event>) => state,
   })();
 
 // Convert a then-able promise to a signal
